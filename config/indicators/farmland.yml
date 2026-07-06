@@ -1,0 +1,29 @@
+id: 71
+slug: farmland
+label: Cropland & farmland
+theme: environment
+format: percent
+decimals: 1
+higher_is_better: null
+source: raster
+raster:
+  product: nlcd_landcover
+  coverage_template: mrlc_download__NLCD_{year}_Land_Cover_L48
+  years:
+  - 2001
+  - 2004
+  - 2006
+  - 2008
+  - 2011
+  - 2013
+  - 2016
+  - 2019
+  - 2021
+  stat: classfrac
+  classes:
+  - 81
+  - 82
+  source_id: nlcd
+description: Share of land in agriculture (cultivated crops + pasture/hay)
+meta_why: Agricultural land tracks the working rural landscape and its conversion
+  to other uses.

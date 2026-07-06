@@ -1,0 +1,50 @@
+id: 13
+slug: private-school
+label: Private school enrollment
+theme: education
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B14002
+  kind: proportion
+  # private-school enrollees (all levels, male + female)
+  num_vars:
+  - B14002_006E
+  - B14002_009E
+  - B14002_012E
+  - B14002_015E
+  - B14002_018E
+  - B14002_021E
+  - B14002_024E
+  - B14002_030E
+  - B14002_033E
+  - B14002_036E
+  - B14002_039E
+  - B14002_042E
+  - B14002_045E
+  - B14002_048E
+  num_moe_vars:
+  - B14002_006M
+  - B14002_009M
+  - B14002_012M
+  - B14002_015M
+  - B14002_018M
+  - B14002_021M
+  - B14002_024M
+  - B14002_030M
+  - B14002_033M
+  - B14002_036M
+  - B14002_039M
+  - B14002_042M
+  - B14002_045M
+  - B14002_048M
+  # denominator: all students enrolled in school (male + female)
+  den_vars: [B14002_003E, B14002_027E]
+  den_moe_vars: [B14002_003M, B14002_027M]
+description: Share of enrolled students who attend private school
+meta_why: >
+  The share of students enrolled in private rather than public school reflects household resources,
+  school-choice patterns, and confidence in local public schools, and it provides context for
+  interpreting public-school enrollment and outcomes.

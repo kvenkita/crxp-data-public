@@ -1,0 +1,15 @@
+# crxp-data pipeline dependencies (Python 3.11+; tested on 3.14)
+pandas>=2.2
+pyarrow>=16
+duckdb>=1.0
+requests>=2.31
+PyYAML>=6.0
+pytest>=8.0
+# Raster → Environment (NLCD zonal stats):
+rasterio>=1.4
+geopandas>=1.0
+exactextract>=0.2
+pyproj>=3.5
+shapely>=2.0
+# Added in later sub-projects (proximity/SAE):
+# rioxarray, libpysal, esda, osmnx, pandana

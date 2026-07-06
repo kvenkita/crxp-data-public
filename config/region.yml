@@ -1,0 +1,41 @@
+# Carolinas Regional Explorer — region definition
+region:
+  name: Charlotte 14-county region
+  tract_vintage: 2020          # publish grain: 2020 Census tracts
+  crs: EPSG:4326
+
+counties:                       # 11 NC + 3 SC
+  - { fips: '37007', name: Anson, state: NC }
+  - { fips: '37025', name: Cabarrus, state: NC }
+  - { fips: '37035', name: Catawba, state: NC }
+  - { fips: '37045', name: Cleveland, state: NC }
+  - { fips: '37071', name: Gaston, state: NC }
+  - { fips: '37097', name: Iredell, state: NC }
+  - { fips: '37109', name: Lincoln, state: NC }
+  - { fips: '37119', name: Mecklenburg, state: NC }
+  - { fips: '37159', name: Rowan, state: NC }
+  - { fips: '37167', name: Stanly, state: NC }
+  - { fips: '37179', name: Union, state: NC }
+  - { fips: '45023', name: Chester, state: SC }
+  - { fips: '45057', name: Lancaster, state: SC }
+  - { fips: '45091', name: York, state: SC }
+
+acs:
+  product: acs5                 # ACS 5-year (tract-level)
+  provider: auto                # 'auto' (api if CENSUS_API_KEY set, else census_reporter) | 'api' | 'census_reporter'
+  api_base: https://api.census.gov/data
+  # Endpoint year = final year of the 5-year window.
+  # Full annual rolling series (overlapping — labeled rolling in the app). Add the next year here
+  # when it is released (e.g. 2025); comparable-period endpoints update automatically.
+  annual_years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
+  # Non-overlapping comparable endpoints are DERIVED in code as {latest, latest-5, latest-10}
+  # (2024 -> 2014/2019/2024; adding 2025 -> 2015/2020/2025). This list is informational only.
+  comparable_years: [2014, 2019, 2024]
+  # ACS years that use 2010 census tracts -> harmonized to 2020 tracts (all years <= 2019):
+  tract2010_years: [2014, 2015, 2016, 2017, 2018, 2019]
+  # Optional Census API key (recommended for volume); read from env CENSUS_API_KEY if set.
+
+reliability:
+  cv_caution: 15.0              # CV% above this -> "caution"
+  cv_unreliable: 30.0          # CV% above this -> "unreliable" (suppression candidate)
+  z_90: 1.645                  # 90% MOE -> standard error divisor / significance threshold

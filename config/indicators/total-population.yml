@@ -1,0 +1,16 @@
+id: 50
+slug: total-population
+label: Total population
+theme: character
+format: number
+decimals: 0
+higher_is_better: null
+source: acs
+acs:
+  table: B01003
+  kind: count
+  estimate_var: B01003_001E
+  moe_var: B01003_001M
+description: Total resident population
+meta_why: Population size is the denominator for most rates and the base measure of
+  a community.

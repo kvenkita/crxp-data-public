@@ -1,0 +1,22 @@
+id: 81
+slug: residential-stability
+label: Residential stability
+theme: engagement
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B07001
+  kind: proportion
+  num_vars: [B07001_017E]            # Same house 1 year ago
+  num_moe_vars: [B07001_017M]
+  den_var: B07001_001E               # Population 1 year and over
+  den_moe_var: B07001_001M
+description: Residents who lived in the same home one year ago
+meta_why: >
+  The share of residents who lived in the same home a year ago is a widely used proxy for
+  residential stability and rootedness — conditions associated with stronger social ties, local
+  knowledge, and civic participation. It is an indirect measure: it reflects who stays put, not
+  voting, volunteering, or membership, which the ACS does not collect. High mobility is not
+  inherently negative (it can signal opportunity or housing churn), so read it in context.

@@ -1,0 +1,36 @@
+id: 64
+slug: child-poverty
+label: Child poverty (families w/ children)
+theme: economy
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B17010
+  kind: proportion
+  num_vars:
+  - B17010_004E
+  - B17010_011E
+  - B17010_017E
+  num_moe_vars:
+  - B17010_004M
+  - B17010_011M
+  - B17010_017M
+  den_vars:
+  - B17010_004E
+  - B17010_011E
+  - B17010_017E
+  - B17010_024E
+  - B17010_031E
+  - B17010_037E
+  den_moe_vars:
+  - B17010_004M
+  - B17010_011M
+  - B17010_017M
+  - B17010_024M
+  - B17010_031M
+  - B17010_037M
+description: Families with related children under 18 whose income is below poverty
+meta_why: Child poverty among families with children is a sensitive measure of economic
+  hardship affecting kids.

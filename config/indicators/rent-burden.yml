@@ -1,0 +1,22 @@
+id: 32
+slug: rent-burden
+label: Rent-burdened households
+theme: housing
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B25070
+  kind: proportion                    # summed numerator (30%+ of income on rent)
+  num_vars: [B25070_007E, B25070_008E, B25070_009E, B25070_010E]   # 30-34.9 / 35-39.9 / 40-49.9 / 50%+
+  num_moe_vars: [B25070_007M, B25070_008M, B25070_009M, B25070_010M]
+  # Denominator = renters with a computable rent-to-income ratio (brackets _002..._010),
+  # i.e. total renters EXCLUDING the "Not computed" cell (_011 = zero/negative income). This
+  # matches standard cost-burden practice; including _011 would bias the rate downward.
+  den_vars: [B25070_002E, B25070_003E, B25070_004E, B25070_005E, B25070_006E, B25070_007E, B25070_008E, B25070_009E, B25070_010E]
+  den_moe_vars: [B25070_002M, B25070_003M, B25070_004M, B25070_005M, B25070_006M, B25070_007M, B25070_008M, B25070_009M, B25070_010M]
+description: Share of renter households (with a computable ratio) paying 30%+ of income on gross rent
+meta_why: >
+  Housing cost burden (spending 30%+ of income on rent) is a key measure of
+  affordability stress and displacement risk.

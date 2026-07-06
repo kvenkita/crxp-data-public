@@ -1,0 +1,20 @@
+id: 3
+slug: veterans
+label: Veterans
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B21001
+  kind: proportion
+  num_vars:
+  - B21001_002E
+  num_moe_vars:
+  - B21001_002M
+  den_var: B21001_001E
+  den_moe_var: B21001_001M
+description: Share of civilian adults who are military veterans
+meta_why: The veteran population helps target benefits, healthcare, and services for
+  those who have served.

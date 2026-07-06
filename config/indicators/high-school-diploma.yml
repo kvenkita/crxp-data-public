@@ -1,0 +1,35 @@
+id: 12
+slug: high-school-diploma
+label: High school diploma or higher
+theme: education
+format: percent
+decimals: 1
+higher_is_better: true
+source: acs
+acs:
+  table: B15003
+  kind: proportion
+  num_vars:
+  - B15003_017E
+  - B15003_018E
+  - B15003_019E
+  - B15003_020E
+  - B15003_021E
+  - B15003_022E
+  - B15003_023E
+  - B15003_024E
+  - B15003_025E
+  num_moe_vars:
+  - B15003_017M
+  - B15003_018M
+  - B15003_019M
+  - B15003_020M
+  - B15003_021M
+  - B15003_022M
+  - B15003_023M
+  - B15003_024M
+  - B15003_025M
+  den_var: B15003_001E
+  den_moe_var: B15003_001M
+description: Adults 25+ with at least a high school diploma
+meta_why: High school completion is a foundational measure of opportunity.

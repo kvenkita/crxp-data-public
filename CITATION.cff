@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use the Carolinas Regional Explorer data pipeline, please cite the working paper (preferred) or this repository."
+title: "Carolinas Regional Explorer — Data Pipeline (crxp-data)"
+abstract: "The open data pipeline that ingests public sources, computes small-area community indicators with propagated uncertainty, harmonizes geography, and produces the versioned data contract for the Carolinas Regional Explorer."
+type: software
+authors:
+  - family-names: Venkitasubramanian
+    given-names: Kailas
+    affiliation: "UNC Charlotte Urban Institute"
+url: "https://github.com/kvenkita/crxp"
+license: MIT
+year: 2026
+keywords:
+  - community indicators
+  - small-area estimation
+  - American Community Survey
+  - data uncertainty
+  - areal interpolation
+  - reproducibility
+preferred-citation:
+  type: article
+  title: "An Open, Reproducible Platform for Small-Area Community Indicators: The Carolinas Regional Explorer"
+  authors:
+    - family-names: Venkitasubramanian
+      given-names: Kailas
+      affiliation: "UNC Charlotte Urban Institute"
+  year: 2026
+  notes: "Working paper, UNC Charlotte Urban Institute. Add the Zenodo/SSRN DOI here once minted."

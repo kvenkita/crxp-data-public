@@ -1,0 +1,28 @@
+[project]
+name = "crxp-data"
+version = "0.1.0"
+description = "Carolinas Regional Explorer data pipeline"
+requires-python = ">=3.11"
+
+# Pinned for reproducibility: the pipeline's numeric output (esp. zonal stats, CRS handling)
+# depends on these versions and their bundled GDAL/PROJ. Re-pin deliberately, not incidentally.
+# The active build's GDAL/PROJ/exactextract versions are recorded in exports/.../provenance.json.
+dependencies = [
+    "pandas==3.0.3",
+    "pyarrow==24.0.0",
+    "duckdb==1.5.4",
+    "requests==2.34.2",
+    "PyYAML==6.0.3",
+    "geopandas==1.1.3",
+    "shapely==2.1.2",
+    "pyproj==3.7.2",
+    "rasterio==1.5.0",
+    "exactextract==0.3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

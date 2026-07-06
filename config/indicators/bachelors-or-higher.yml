@@ -1,0 +1,26 @@
+id: 11
+slug: bachelors-or-higher
+label: Bachelor's degree or higher
+theme: education
+format: percent
+decimals: 1
+higher_is_better: true
+source: acs
+acs:
+  table: B15003
+  kind: proportion
+  num_vars:
+  - B15003_022E
+  - B15003_023E
+  - B15003_024E
+  - B15003_025E
+  num_moe_vars:
+  - B15003_022M
+  - B15003_023M
+  - B15003_024M
+  - B15003_025M
+  den_var: B15003_001E
+  den_moe_var: B15003_001M
+description: Adults 25+ with a bachelor's degree or higher
+meta_why: Educational attainment is strongly associated with earnings, health, and
+  mobility.

@@ -1,0 +1,20 @@
+id: 53
+slug: households-with-children
+label: Households with children
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B11005
+  kind: proportion
+  num_vars:
+  - B11005_002E
+  num_moe_vars:
+  - B11005_002M
+  den_var: B11005_001E
+  den_moe_var: B11005_001M
+description: Households with one or more people under 18
+meta_why: The share of households with children signals demand for schools, childcare,
+  and family services.

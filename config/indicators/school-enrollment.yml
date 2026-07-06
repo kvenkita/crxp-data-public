@@ -1,0 +1,20 @@
+id: 58
+slug: school-enrollment
+label: School enrollment (age 3+)
+theme: education
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B14001
+  kind: proportion
+  num_vars:
+  - B14001_002E
+  num_moe_vars:
+  - B14001_002M
+  den_var: B14001_001E
+  den_moe_var: B14001_001M
+description: Population age 3+ enrolled in school
+meta_why: Enrollment reflects the share of residents in the education system, from
+  preschool through college.

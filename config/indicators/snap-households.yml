@@ -1,0 +1,19 @@
+id: 33
+slug: snap-households
+label: Households receiving SNAP
+theme: economy
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B22010
+  kind: proportion
+  num_vars: [B22010_002E]            # received Food Stamps/SNAP in past 12 months
+  num_moe_vars: [B22010_002M]
+  den_var: B22010_001E               # total households
+  den_moe_var: B22010_001M
+description: Share of households that received SNAP (food stamp) benefits in the past year
+meta_why: >
+  SNAP receipt is a direct indicator of food-related economic need and of how
+  many households rely on nutrition assistance.

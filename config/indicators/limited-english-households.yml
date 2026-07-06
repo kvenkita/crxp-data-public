@@ -1,0 +1,19 @@
+id: 34
+slug: limited-english-households
+label: Limited-English-speaking households
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: C16002
+  kind: proportion                    # summed numerator across language groups
+  num_vars: [C16002_003E, C16002_006E, C16002_009E, C16002_012E]   # limited-English: Spanish / Other Indo-Euro / Asian-PI / Other
+  num_moe_vars: [C16002_003M, C16002_006M, C16002_009M, C16002_012M]
+  den_var: C16002_001E               # total households
+  den_moe_var: C16002_001M
+description: Share of households where no one 14+ speaks English "very well"
+meta_why: >
+  Limited-English-speaking households signal where language access (translated
+  materials, interpreters) matters most for services and civic participation.

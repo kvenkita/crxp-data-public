@@ -1,0 +1,21 @@
+id: 76
+slug: tree-canopy
+label: Tree canopy
+theme: environment
+format: percent
+decimals: 1
+higher_is_better: true
+source: raster
+raster:
+  product: nlcd_tcc
+  source_id: nlcd_tcc
+  stat: mean
+  years: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023]   # NLCD TCC is annual
+  # NLCD Tree Canopy Cover (USFS), per-year GeoTIFF inside a zip-of-zips placed in data/raster/
+  outer_zip: nlcd_tcc_CONUS_2015_2023_v2023-5_wgs84.zip
+  inner_zip_template: "nlcd_tcc_CONUS_{year}_v2023-5_wgs84.zip"
+  tif_template: "nlcd_tcc_conus_wgs84_v2023-5_{year}0101_{year}1231.tif"
+description: Average percent tree-canopy cover (continuous), from NLCD Tree Canopy Cover
+meta_why: >
+  Tree canopy cools neighborhoods, cleans air and water, and supports health and
+  habitat; the continuous canopy measure captures trees beyond forest land alone.

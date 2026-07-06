@@ -1,0 +1,427 @@
+---
+title: "Carolinas Regional Explorer — Data Pipeline Technical Documentation"
+subtitle: "Architecture, codebase, processing, QA & handoff (internal)"
+date: last-modified
+author: "Kailas Venkitasubramanian"
+toc: true
+toc-depth: 3
+toc-location: left
+number-sections: true
+format:
+  html:
+    theme: cosmo
+    code-copy: true
+    embed-resources: true
+    mermaid:
+      theme: neutral
+---
+
+::: callout-note
+**Living document.** This describes the data pipeline (`crxp-data/`) that produces every indicator
+served by the CRXP app. Update it whenever stages, the warehouse schema, sources, the config model, or
+the handoff contract change. Companions: *Application Technical Documentation* (`crxp/docs/`) and
+*Methodology Guide* (this folder). Methodological detail (formulas, definitions) lives in the
+Methodology Guide; this document covers **engineering**.
+:::
+
+# Overview & goals
+
+`crxp-data` is an open-source, reproducible **Python** pipeline that turns public data into reviewed,
+tract-level indicators (with margins of error) and hands them to the CRXP app. Goals:
+
+- **Config-driven:** add/modify indicators by editing YAML — little or no code.
+- **Uncertainty-aware:** every estimate carries a 90% MOE; CV and a reliability flag are derived.
+- **Comparable over time:** ACS 5-year overlap handled; pre-2020 vintages harmonized to 2020 tracts.
+- **Multi-source:** one ingester module per source (ACS, CDC PLACES, …) behind a common interface.
+- **Reproducible & documented:** runnable by analysts/students; no ArcGIS. Dependencies are pinned
+  in `pyproject.toml`, a **`provenance.json`** (library + GDAL/PROJ versions) ships with each build, and
+  the warehouse parquets are committed so `--reexport` works on a fresh clone.
+- **Two products:** the app **data contract** (handoff) and a reusable **warehouse** (parquet + DuckDB).
+
+Runs on Python 3.11+ (tested on 3.14). Pinned deps include pandas, pyarrow, duckdb, requests, pyyaml,
+geopandas, shapely, pyproj, rasterio, exactextract (raster stack), plus pytest for tests.
+
+# End-to-end architecture
+
+```{mermaid}
+flowchart LR
+  subgraph Sources
+    ACS["Census ACS API<br/>or Census Reporter"]
+    CDC["CDC PLACES<br/>Socrata"]
+    NLCD["USGS NLCD<br/>MRLC WCS"]
+    VIIRS["EOG VIIRS VNL<br/>night lights"]
+  end
+  ACS --> ING["Ingest<br/>sources/*.py"]
+  CDC --> ING
+  NLCD --> ING
+  VIIRS --> ING
+  ING --> HARM["Harmonize<br/>2010 to 2020 tracts<br/>harmonize.py"]
+  HARM --> CALC["Indicator calc<br/>MOE / CV / reliability<br/>indicators/calc.py"]
+  CALC --> SP["Spatial<br/>z, breaks, LISA + FDR<br/>spatial.py"]
+  SP --> WH[("Warehouse<br/>parquet + crxp.duckdb<br/>warehouse.py")]
+  SP --> EXP["Export / handoff<br/>export_crxp.py"]
+  EXP --> APP["crxp/static/data<br/>app data contract"]
+  CFG["config/*.yml"] -. drives .-> ING & HARM & CALC & EXP
+```
+
+# Data flow (per indicator)
+
+```{mermaid}
+sequenceDiagram
+  participant U as analyst
+  participant B as build.py
+  participant S as sources
+  participant H as harmonize
+  participant C as calc
+  participant SP as spatial
+  participant W as warehouse
+  participant E as export
+  U->>B: run build for an indicator
+  B->>S: fetch indicator variables
+  S-->>B: raw vars by geoid and year
+  B->>H: harmonize 2010 to 2020 tracts (ACS only)
+  H-->>B: raw on 2020 tracts
+  B->>C: compute value, MOE, CV, reliability
+  B->>B: keep 2020 tracts and per-area density if needed
+  B->>W: write warehouse (parquet, duckdb)
+  B->>B: comparable-period change and significance
+  B->>SP: z-scores and LISA per year
+  B->>E: build value file, analytics, aggregates
+  E->>E: merge into app on handoff
+```
+
+# Repository structure
+
+```
+crxp-data/
+├─ config/
+│  ├─ region.yml                 # 14 counties, ACS settings, reliability thresholds, vintages
+│  ├─ sources/<id>.yml           # source registry (provider, cadence, sustainability)
+│  └─ indicators/<slug>.yml      # one file per indicator (THE main editing surface)
+├─ src/crxp_data/
+│  ├─ config.py                  # load_region / load_indicator / list_indicators
+│  ├─ sources/
+│  │  ├─ census_acs.py           # ACS ingester (API + Census Reporter; raw variables; retries)
+│  │  ├─ cdc_places.py           # CDC PLACES ingester (Socrata; joins on locationid)
+│  │  ├─ raster_nlcd.py          # NLCD / Tree Canopy zonal stats (exactextract; atomic downloads)
+│  │  └─ viirs.py                # EOG VIIRS night-lights zonal mean (atomic downloads)
+│  ├─ harmonize.py               # 2010→2020 tract crosswalk + raw-variable allocation
+│  ├─ indicators/calc.py         # MOE propagation, CV, reliability, value assembly, significance
+│  ├─ spatial.py                 # z-scores, quantile breaks, kNN weights, local Moran/LISA + BH-FDR
+│  ├─ geo.py                     # tract representative-point centroids + 2020 tract land area
+│  ├─ qa.py                      # build-failing QA gate (coverage / null-rate / value range)
+│  ├─ provenance.py              # captures lib + GDAL/PROJ versions → provenance.json
+│  ├─ warehouse.py               # parquet + DuckDB writers
+│  ├─ aggregate.py               # county + region rollup (authoritative county estimates + pooled region)
+│  ├─ export_crxp.py             # app contract builders (schemaVersion, aggregate MOE) + atomic handoff
+│  └─ build.py                   # CLI orchestrator (per-indicator, --handoff/--reexport/--reharmonize)
+├─ data/                         # committed reference data (area + population crosswalks, land area)
+├─ warehouse/                    # tract_indicators/*.parquet + county_indicators/*.parquet (COMMITTED) + crxp.duckdb (gitignored)
+├─ exports/                      # generated: app contract staging (gitignored)
+├─ scripts/                      # seed_acs_indicators*.py, build_pop_crosswalk.py, helpers
+├─ tests/                        # pytest (calc, spatial+FDR, export, harmonize, qa, geo)
+└─ docs/                         # this doc + methodology guide + working paper
+```
+
+# Configuration model
+
+Three YAML layers, all loaded by `config.py`.
+
+## `region.yml`
+Region-wide settings: the 14 `counties` (FIPS/name/state), `crs`, `tract_vintage: 2020`, the ACS
+block (`provider`, `api_base`, `annual_years`, `comparable_years`, **`tract2010_years`**), and
+`reliability` thresholds (`cv_caution: 15`, `cv_unreliable: 30`, `z_90: 1.645`).
+
+## `sources/<id>.yml`
+Registry metadata for each raw source: `fetch` mode, native geo level, `vintages`, `cadence`,
+`update_status`, `last_release`, `decommission_risk`. Used for documentation/sustainability (see the
+catalog) and provenance.
+
+## `indicators/<slug>.yml` — the main editing surface
+One file per indicator. Common fields:
+
+| Field | Meaning |
+|---|---|
+| `id` | Stable numeric id (used as the contract filename and warehouse key) |
+| `slug`, `label`, `description`, `meta_why` | Identity + human copy (drive metadata page) |
+| `theme` | App category key (must exist in the app manifest `categories`) |
+| `format`, `decimals` | `percent` / `dollar` / `number` / `years`; display precision |
+| `higher_is_better` | `true` / `false` / `null` (drives direction language) |
+| `source` | `acs` or `cdc_places` |
+| `acs` / `cdc` | Source-specific spec (below) |
+
+### ACS spec (`acs:`) by `kind`
+
+| `kind` | Fields | Value computed |
+|---|---|---|
+| `median` | `estimate_var`, `moe_var` | passthrough estimate + MOE (also used for averages, indices) |
+| `count` / `number` | `estimate_var`, `moe_var` | passthrough count (+ `per_land_area: true` → divide by sq-mi land area for density) |
+| `proportion` | `num_vars[]`, `num_moe_vars[]`, `den_var`/`den_vars[]`, `den_moe_var`/`den_moe_vars[]`, optional `multiplier` | summed numerator ÷ denominator; subset-safe proportion MOE |
+| `rate` | same as proportion | numerator ÷ denominator where numerator ⊄ denominator; ratio MOE |
+
+`num_vars`/`den_vars` are **lists** (summed), so derived measures (e.g. cost burden = several income
+bands; child poverty with a 6-line denominator) are pure config. Variable ids are official ACS codes
+(`B19013_001E` estimate, `B19013_001M` margin). Subject tables (`S####`) are auto-routed to the
+`/acs/acs5/subject` endpoint. An optional `num_vars_by_year` (with `num_moe_vars_by_year`) overrides the
+numerator for specific vintages, for the rare table whose category boundaries shift across releases
+(B25034 "year structure built"; see the methodology guide's *Homes built since 2010*).
+
+### CDC spec (`cdc:`)
+`measure_id` (e.g. `OBESITY`) + `data_value_type` (default `Crude prevalence`). The ingester pulls the
+model-based estimate and 95% CI, converted to a 90%-equivalent MOE.
+
+# Pipeline stages
+
+## Ingest — `sources/`
+`census_acs.fetch_indicator(region, indicator, years)` returns a tidy frame of **raw ACS variables**
+by `(geoid, year)`. Provider resolves from `region.acs.provider`:
+
+- `auto` → official **API** if `CENSUS_API_KEY` is set, else **Census Reporter**.
+- `api` — multi-vintage history; requires the key; per-year/county requests with **retry + backoff**. If a
+  table is genuinely absent for a vintage (all counties fail identically) the year is skipped (non-fatal);
+  a partial failure (some counties returned, others didn't) raises rather than silently publishing
+  a truncated year that would corrupt the series.
+- `census_reporter` — keyless but **latest release only** (single year). Good for quick refreshes.
+
+`cdc_places.RELEASES` is a registry of the six PLACES releases (2020–2025), each specifying its
+Socrata dataset ID and tract vintage (`2010` or `2020`). `fetch_measure(region, measure_id, dv_type,
+level, releases=None)` queries one release at a time, joins on the canonical **`locationid`** (tract
+FIPS), guards confidence-bound order, and returns `value` + a 90%-equiv `moe` tagged with its source
+vintage. `newest_wins(df)` then de-duplicates across releases, keeping the most recent release's
+estimate per `(geoid, data_year)`.
+
+In `build.py`, the CDC branch passes 2010-vintage tract rows through
+`harmonize_places_rates(raw, crosswalk, years_2010)` (2020-native rows pass through untouched) and feeds
+the merged frame into the shared `calc` engine; county releases are stitched newest-release-wins directly
+(county boundaries are stable). On export, `manifest_entry` sets **`crossReleaseTrend: true`** plus a
+`trendNote` for every `cdc_places` indicator; the app keys off this flag to suppress change figures
+(significance markers, the report *Change* column, county-card deltas) while still drawing the level
+series and its band. For the pseudo-count allocation math and why PLACES cannot support trend analysis,
+see the *Methodology Guide* §CDC PLACES time series (and CDC's *Using the Data* guidance).
+
+`raster_nlcd.fetch_indicator` (source `raster`) clips region GeoTIFFs from the **MRLC WCS** (auth-free,
+EPSG:5070, cached under `data/raster/`, gitignored) and computes **area-weighted zonal statistics** to
+2020 tracts with `exactextract` (`stat: classfrac` or `mean`); no sampling MOE (`moe=None`). For the
+exactextract method and why rasters carry classification accuracy rather than a sampling MOE, see the
+*Methodology Guide* §Raster-derived indicators. Needs the geo stack
+(`rasterio`, `geopandas`, `exactextract`, `pyproj`, `shapely`). Indicator config carries a `raster`
+block (`coverage_template` with `{year}`, `years`, `stat`, and `classes` for `classfrac`). It also
+supports **local raster sources** (e.g. NLCD Tree Canopy Cover): a `raster` block with `outer_zip` +
+`inner_zip_template` + `tif_template` reads per-year GeoTIFFs straight from a (nested) zip via GDAL
+`/vsizip/`, clips once to the region (reprojecting tracts to the raster CRS), caches the small clip, and
+takes the zonal `mean`.
+
+`viirs.fetch_indicator` (source `viirs`) produces **light pollution** = area-weighted **mean radiance**
+per tract from the **EOG VIIRS VNL V2** annual composites. EOG downloads are account-gated (Keycloak
+realm `eog`); the global GeoTIFFs are obtained **manually** (drop a `*_<year>_*median_masked*.tif.gz`
+into `data/raster/` from a browser-authenticated EOG session) or via the EOG OAuth API
+(`EOG_USERNAME`/`EOG_PASSWORD` + a per-account `EOG_CLIENT_ID`/`EOG_CLIENT_SECRET`), then clipped to the
+region (`/vsigzip/` windowed read) and cached. Config: a `viirs` block (`version`, `years`).
+
+## Harmonize — `harmonize.py` / `cdc_places.harmonize_places_rates`
+ACS years in `tract2010_years` (2014–2019) use **2010 census tracts**. `build_crosswalk` returns the
+**population-weighted** crosswalk `data/tract_2010_2020_crosswalk_pop.csv` when present (built by
+`scripts/build_pop_crosswalk.py` from the Census 2010↔2020 **block** comparability files + 2020 block
+population — drop the `TAB2010_TAB2020_ST*.zip` files in `data/raster/`), otherwise falls back to the
+area-weighted `tract_2010_2020_crosswalk.csv`. `to_2020_tracts` allocates each raw variable to 2020
+tracts by the crosswalk `afact` weights. To re-process the 2010-vintage years after changing the
+crosswalk: `build … --reharmonize` (re-fetches only 2014–2019, merges with 2020+ from the warehouse).
+For the dasymetric allocation math, the population-vs-area rationale, and the median caveat, see the
+*Methodology Guide* §Geographic harmonization.
+
+`harmonize_places_rates(raw, crosswalk, years_2010)` applies population-weighted pseudo-count
+allocation to 2010-vintage PLACES rows (2020-native rows and county data pass through unmodified). See
+the *Methodology Guide* §CDC PLACES time series for the derivation.
+
+## Indicator calc — `indicators/calc.py`
+`compute_indicator` assembles `value` + `moe` per the `kind`, then derives `cv` and `reliability`.
+Pure scalar functions (`proportion_moe`, `ratio_moe`, `agg_moe`, `cv_percent`, `reliability`,
+`significant_diff`) implement the Census formulas (unit-tested against worked values). For value+CI
+sources (CDC), `add_reliability` adds CV/reliability directly.
+
+## Spatial — `spatial.py`
+Per year: `zscores`, cross-year-consistent `quantile_breaks`, `knn_weights` (k=8 from tract
+representative-point centroids), and `local_moran` → LISA quadrant codes with **Benjamini–Hochberg FDR**
+correction. `spatial.py` is the **single source of truth** for LISA; the app consumes the precomputed
+quadrants and no longer recomputes them client-side. For the conditional-permutation null, the
+representative-point rationale, and the FDR procedure, see the *Methodology Guide* §Spatial statistics.
+
+## Warehouse — `warehouse.py`
+Writes one parquet per indicator and upserts into the DuckDB table `tract_indicators` (delete-then-
+insert by `indicator_id`). It also stores the **`county_indicators`** rollup (one parquet per indicator
+under `warehouse/county_indicators/`, geoid = county FIPS plus a `REGION` row) so `--reexport` can rebuild
+aggregates without re-fetching. See schema below.
+
+## County + region rollup — `aggregate.py`
+`build_county_region` produces the **authoritative** county and region values (not a tract average),
+each source through its own path: ACS county tables (`census_acs.fetch_indicator_county`), the CDC PLACES
+county model (`cdc_places.fetch_indicator_county`, dataset `swc5-untb`), or land-area-weighted tract
+values for raster/VIIRS, all run through the same `calc` engine. Region pooling uses `_sum_raw` (sum
+estimates, MOEs in quadrature) and `census_acs.county_population` weights for medians/indices. Output is
+one frame per indicator persisted to the `county_indicators` warehouse. For the aggregation policy (why
+not average tracts) and the median approximation caveat, see the *Methodology Guide* §County and region
+estimates.
+
+## Export / handoff — `export_crxp.py`
+Builds the app contract: value file (with `schemaVersion`, `moe`/`cv`/`reliability`), z + LISA docs, and
+county/region **aggregates including `regionMoe`/`countyMoe`**, now consuming the authoritative
+`county_indicators` rollup (`build_aggregates`) rather than averaging tracts. With `--handoff`,
+`merge_into_app` writes them into `crxp/static/data`, **merges** the indicator into `manifest.json`
+(+ `schemaVersion`) and `aggregates.json` via **atomic temp-file writes**, writes `meta/m<id>.md`, and emits
+**`provenance.json`** (library + GDAL/PROJ versions). All file reads/writes use explicit UTF-8 encoding
+(config YAML, contract JSON, and meta markdown) so non-ASCII characters survive on Windows.
+
+## Orchestration — `build.py`
+`python -m crxp_data.build <slug…> [--handoff] [--reexport] [--refetch] [--reharmonize]` runs the stages
+per indicator and prints a summary (coverage, comparable-period change & significance counts, files
+written). A **QA gate** (`qa.py`) runs before the warehouse write and **fails the build** on collapsed
+geoid coverage, excessive nulls, or out-of-range values. ACS builds are **incremental by default** — only
+years missing from the warehouse are fetched, then merged (`--refetch` forces a full re-fetch).
+**`--reexport`** rebuilds the app contract from the committed warehouse without any fetch (e.g. after
+changing export/period/analytics logic); **`--reharmonize`** re-fetches + re-harmonizes only the
+2010-vintage years (after a crosswalk change). Comparable-period endpoints are derived dynamically as
+`{latest, latest−5, latest−10}` from `annual_years`, so adding a year advances both comparisons.
+
+## CDC PLACES breadth staging — `scripts/stage_cdc_all.py`
+
+This utility script is separate from the main build pipeline and runs independently. It stages
+the full PLACES catalogue — all 40 measures at both tract and county level, across all six
+releases, newest-release-wins, with 2010-vintage tract rows harmonized to 2020 tracts (2020-native
+rows pass through) so every staged file is on the app's 2020-tract geography — into `warehouse/cdc_raw/`:
+
+```
+warehouse/cdc_raw/
+  tract/<MEASUREID>.parquet      # one file per measure; all data years; 2020-tract geography
+  county/<MEASUREID>.parquet     # one file per measure; all data years; county FIPS
+  catalog.csv                    # decision aid: per (measure × level) category, year span,
+                                 #   and latest-year reliability counts
+```
+
+`catalog.csv` surfaces category, available year span, and latest-year reliability counts for each
+measure × geography combination, designed as a review aid for deciding which measures to promote
+into the app manifest. Staging touches **no indicator configs or app manifest** and does not trigger
+a handoff, so it is safe to re-run at any time without side effects.
+
+Currently 16 of the 40 measures are surfaced in the app (the indicators in the catalog above).
+The remaining 24 are held in `cdc_raw/` pending analyst review of coverage and comparability.
+
+# Warehouse data model
+
+**`tract_indicators`** (DuckDB `warehouse/crxp.duckdb` + `warehouse/tract_indicators/<id>.parquet`):
+
+| Column | Type | Notes |
+|---|---|---|
+| `geoid` | varchar | 2020 census tract |
+| `indicator_id` | int | matches config + contract filename |
+| `year` | int | endpoint year of the 5-year window |
+| `value`, `moe`, `cv` | double | estimate, 90% MOE, coefficient of variation (%) |
+| `reliability` | varchar | `ok` / `caution` / `unreliable` / null |
+| `period_start`, `period_end` | int | 5-year window (ACS); `period_start = year − span` |
+| `is_rolling` | bool | true for ACS rolling series; false for point estimates (CDC) |
+| `est_method` | varchar | `acs_direct` / `cdc_places_mrp` / … |
+| `source_id`, `source_vintage` | varchar | provenance |
+| `redacted` | bool | reserved for small-n suppression |
+| `created` | varchar | build date |
+
+The DuckDB file is the **shared backend** groundwork: any app (CRXP, QoL, future) can query it with SQL.
+
+```sql
+-- example: most-uncertain tracts for an indicator
+SELECT geoid, value, moe, cv, reliability
+FROM tract_indicators
+WHERE indicator_id = 30 AND year = 2024
+ORDER BY cv DESC LIMIT 20;
+```
+
+# Sources & how to add one
+
+Each source is a module in `sources/` exposing `fetch_indicator(region, indicator, years) -> DataFrame`.
+To add a source:
+
+1. Create `config/sources/<id>.yml` (provider, cadence, sustainability).
+2. Implement `sources/<id>.py` returning either raw variable columns (ACS-style → `compute_indicator`)
+   or a `value`/`moe` frame (CDC-style → `calc.add_reliability`).
+3. Add a dispatch branch + `src_meta` (est_method/source_id/span/rolling) in `build.py`.
+4. Add indicator YAMLs referencing `source: <id>`.
+
+# Add a new indicator (standard operating procedure)
+
+```{mermaid}
+flowchart LR
+  A["Write indicator config (YAML)"] --> B["Build the indicator"]
+  B --> C{"Review summary and warehouse"}
+  C -->|looks right| D["Hand off to app"]
+  C -->|issues| A
+  D --> E["Validate data contract"]
+  E --> F["Build site and spot-check"]
+```
+
+1. **Write the YAML** (`config/indicators/<slug>.yml`). Pick `kind`; use official ACS variable codes.
+   Bulk additions can be scripted (see `scripts/seed_acs_indicators*.py`, which encode verified codes).
+2. **Dry run:** `python -m crxp_data.build <slug>` (no handoff). Check coverage (~752 tracts),
+   reliability mix, and comparable-period change in the printout; inspect the warehouse.
+3. **Hand off:** re-run with `--handoff`.
+4. **Validate + view:** `cd ../crxp && npm run build:data`, then `npm run build` and spot-check.
+5. Update the *Methodology Guide* indicator catalog and this doc if a new pattern/source was introduced.
+
+::: callout-tip
+Verify unfamiliar ACS variable codes against the group metadata
+(`https://api.census.gov/data/<year>/acs/acs5[/subject]/groups/<TABLE>.json`) before adding them —
+a wrong/absent code skips all years and yields empty output.
+:::
+
+# Review, QA & testing
+
+- **QA gate** (`qa.py`, run in `build.py` before warehousing): **fails the build** if a year's geoid
+  coverage collapses, the null rate is excessive, or finite values fall outside a configured plausible
+  range, catching catastrophic ingest problems rather than silently publishing them.
+- **Per-run summary** (build.py): geoid coverage, comparable-period significant-change counts, rows
+  written, files merged: the first review surface.
+- **Reliability flags:** CV-based `caution`/`unreliable` in the warehouse and contract; surfaced in
+  the app. High-CV small-count rates are expected at tract level.
+- **`pytest`** (`tests/`): MOE formulas + difference-significance vs Census worked values; spatial
+  (z/breaks, **BH-FDR**, LISA false-positive control); export contract shape; harmonization allocation
+  (counts, medians, pass-through); QA gate; representative-point centroids + crosswalk afact sums.
+- **App contract gate:** `crxp/scripts/build-data.mjs` validates the handed-off files (schemaVersion,
+  year-alignment, analytics/aggregate content, geoid reconciliation).
+- **Visual checks:** Playwright spot-checks after handoff.
+
+Run tests: `$env:PYTHONPATH="src"; .venv\Scripts\python -m pytest -q` (or rely on `pyproject.toml`'s
+`pythonpath=src`).
+
+# Running the pipeline
+
+```bash
+# one-time
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+setx CENSUS_API_KEY <key>        # official ACS API (multi-vintage). Get one free at census.gov.
+
+# run (Windows PowerShell; key inline if the shell hasn't picked up setx yet)
+$env:CENSUS_API_KEY="<key>"; $env:PYTHONPATH="src"
+.venv\Scripts\python -m crxp_data.build poverty-rate --handoff
+```
+
+Without a key, `provider: auto` falls back to Census Reporter (latest year only).
+
+# Cadence & staggered updates
+
+- **ACS** — annual rolling (latest endpoint 2024) + non-overlapping comparable years; re-pull on each
+  ACS 5-year release.
+- **CDC PLACES** — six releases (2020–2025) stitched into a newest-release-wins time series; data
+  years 2017–2023 depending on measure. Add a new release by appending to `RELEASES` in
+  `cdc_places.py` and re-running the affected slugs with `--handoff`.
+- Updates are **per (source, indicator)**: re-run only the affected slugs with `--handoff`. County- or
+  year-scoped gaps surface as no-data via the app's per-indicator availability handling. A formal
+  run-ledger + manual-upload landing is a planned enhancement (P2.7).
+
+# Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| `No ACS years could be fetched` | Wrong/absent variable code, or table missing all requested years — verify codes in group metadata |
+| `! skipping <year>` | Table not published that vintage (e.g. C16002/B28002 pre-2016) — expected; non-fatal |
+| All values null after build | Variable returns a Census jam value (`-888888888` "not available") at tract — that breakdown isn't published at tract level |
+| `Missing Key` HTML from Census | `provider: api` without `CENSUS_API_KEY` |
+| Coverage ~480 instead of ~749 | Harmonization not applied — confirm `tract2010_years` set and crosswalk present |
+| `theme … not a manifest category` on handoff | Indicator `theme` must match an app manifest category key |

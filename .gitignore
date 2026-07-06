@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# DuckDB is a query convenience rebuilt from the committed parquets
+warehouse/*.duckdb
+warehouse/**/*.duckdb
+# generated app-contract exports (rebuilt by the pipeline)
+exports/
+# large cached raster clips (re-fetched from MRLC WCS / EOG on demand)
+data/raster/
+# Quarto rendered outputs (source .qmd is committed)
+docs/*.html
+docs/**/*.html
+docs/.quarto/
+docs/**/.quarto/
+docs/**/*_files/
+docs/**/*.pdf

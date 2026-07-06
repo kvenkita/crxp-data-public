@@ -1,0 +1,42 @@
+id: 1
+slug: older-adults
+label: Older adults (65+)
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B01001
+  kind: proportion
+  num_vars:
+  - B01001_020E
+  - B01001_021E
+  - B01001_022E
+  - B01001_023E
+  - B01001_024E
+  - B01001_025E
+  - B01001_044E
+  - B01001_045E
+  - B01001_046E
+  - B01001_047E
+  - B01001_048E
+  - B01001_049E
+  num_moe_vars:
+  - B01001_020M
+  - B01001_021M
+  - B01001_022M
+  - B01001_023M
+  - B01001_024M
+  - B01001_025M
+  - B01001_044M
+  - B01001_045M
+  - B01001_046M
+  - B01001_047M
+  - B01001_048M
+  - B01001_049M
+  den_var: B01001_001E
+  den_moe_var: B01001_001M
+description: Share of residents aged 65 and older
+meta_why: The share of older adults shapes demand for healthcare, accessible housing,
+  transportation, and senior services.

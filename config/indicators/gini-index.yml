@@ -1,0 +1,16 @@
+id: 57
+slug: gini-index
+label: Income inequality (Gini)
+theme: economy
+format: number
+decimals: 3
+higher_is_better: false
+source: acs
+acs:
+  table: B19083
+  kind: median
+  estimate_var: B19083_001E
+  moe_var: B19083_001M
+description: Gini index of income inequality (0 = equal, 1 = unequal)
+meta_why: The Gini index summarizes how unequally income is distributed within an
+  area.

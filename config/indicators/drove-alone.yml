@@ -1,0 +1,19 @@
+id: 19
+slug: drove-alone
+label: Drove alone to work
+theme: transportation
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B08301
+  kind: proportion
+  num_vars:
+  - B08301_003E
+  num_moe_vars:
+  - B08301_003M
+  den_var: B08301_001E
+  den_moe_var: B08301_001M
+description: Workers who commute by driving alone
+meta_why: Reflects car dependence, congestion, and emissions.

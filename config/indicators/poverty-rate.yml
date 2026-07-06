@@ -1,0 +1,19 @@
+id: 30
+slug: poverty-rate
+label: Poverty rate
+theme: economy
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B17001
+  kind: proportion
+  num_vars: [B17001_002E]            # income in past 12 months below poverty
+  num_moe_vars: [B17001_002M]
+  den_var: B17001_001E               # population for whom poverty status is determined
+  den_moe_var: B17001_001M
+description: Share of people with income below the federal poverty level
+meta_why: >
+  The poverty rate is a foundational measure of economic hardship and need for
+  services, and it shapes eligibility for many programs.

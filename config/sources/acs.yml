@@ -1,0 +1,17 @@
+id: acs
+name: American Community Survey 5-Year Estimates
+theme: multiple
+provider: U.S. Census Bureau
+fetch: api                       # https://api.census.gov/data/<year>/acs/acs5
+native_geo: tract
+vintages: [2013, 2018, 2019, 2020, 2021, 2022, 2023]
+license: Public domain (U.S. Census Bureau)
+cadence: annual                  # rolling 5-year; adjacent years overlap (not directly comparable)
+county_scope: all
+owner: data team
+update_status: active
+last_release: 2023
+decommission_risk: low
+notes: >
+  Primary direct tract source. Estimates carry 90% MOEs; adjacent 5-year vintages overlap by 4 years,
+  so only non-overlapping endpoints are comparable. PUMS-SAE is used only for cross-tabs not published at tract.

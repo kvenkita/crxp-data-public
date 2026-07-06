@@ -1,0 +1,14 @@
+id: 46
+slug: asthma
+label: Current asthma (adults)
+theme: health
+format: percent
+decimals: 1
+higher_is_better: false
+source: cdc_places
+cdc:
+  measure_id: CASTHMA
+  data_value_type: Crude prevalence
+description: Share of adults who currently have asthma
+meta_why: >
+  Asthma prevalence is closely tied to housing quality, indoor triggers, and outdoor air pollution, making it a useful environmental-health signal.

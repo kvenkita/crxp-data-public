@@ -1,0 +1,15 @@
+id: 75
+slug: light-pollution
+label: Light pollution (night lights)
+theme: environment
+format: number
+decimals: 2
+higher_is_better: false
+source: viirs
+viirs:
+  version: v22
+  years: [2014, 2019, 2024]
+description: Average nighttime-light radiance (nW/cm²/sr) — a measure of artificial light at night
+meta_why: >
+  Nighttime-light radiance captures light pollution, which affects ecosystems, human
+  health, and energy use, and also tracks the intensity of human development.

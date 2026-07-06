@@ -1,0 +1,19 @@
+id: 16
+slug: vacant-homes
+label: Vacant homes
+theme: housing
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B25002
+  kind: proportion
+  num_vars:
+  - B25002_003E
+  num_moe_vars:
+  - B25002_003M
+  den_var: B25002_001E
+  den_moe_var: B25002_001M
+description: Housing units that are vacant
+meta_why: High vacancy can signal disinvestment or seasonal/rental turnover.

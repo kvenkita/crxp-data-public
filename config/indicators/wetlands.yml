@@ -1,0 +1,29 @@
+id: 72
+slug: wetlands
+label: Wetlands
+theme: environment
+format: percent
+decimals: 1
+higher_is_better: null
+source: raster
+raster:
+  product: nlcd_landcover
+  coverage_template: mrlc_download__NLCD_{year}_Land_Cover_L48
+  years:
+  - 2001
+  - 2004
+  - 2006
+  - 2008
+  - 2011
+  - 2013
+  - 2016
+  - 2019
+  - 2021
+  stat: classfrac
+  classes:
+  - 90
+  - 95
+  source_id: nlcd
+description: Share of land classified as wetland (woody + emergent herbaceous)
+meta_why: Wetlands provide flood control, water filtering, and habitat, and are sensitive
+  to development.

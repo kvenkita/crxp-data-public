@@ -1,0 +1,34 @@
+id: 2
+slug: youth
+label: Youth (under 18)
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B01001
+  kind: proportion
+  num_vars:
+  - B01001_003E
+  - B01001_004E
+  - B01001_005E
+  - B01001_006E
+  - B01001_027E
+  - B01001_028E
+  - B01001_029E
+  - B01001_030E
+  num_moe_vars:
+  - B01001_003M
+  - B01001_004M
+  - B01001_005M
+  - B01001_006M
+  - B01001_027M
+  - B01001_028M
+  - B01001_029M
+  - B01001_030M
+  den_var: B01001_001E
+  den_moe_var: B01001_001M
+description: Share of residents under age 18
+meta_why: The youth share signals demand for schools, childcare, parks, and family
+  services.

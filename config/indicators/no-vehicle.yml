@@ -1,0 +1,19 @@
+id: 17
+slug: no-vehicle
+label: Households without a vehicle
+theme: transportation
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B08201
+  kind: proportion
+  num_vars:
+  - B08201_002E
+  num_moe_vars:
+  - B08201_002M
+  den_var: B08201_001E
+  den_moe_var: B08201_001M
+description: Households with no vehicle available
+meta_why: Vehicle access affects reaching jobs, food, and care.

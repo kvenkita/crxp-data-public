@@ -1,0 +1,507 @@
+---
+title: "Carolinas Regional Explorer — Methodology Guide"
+subtitle: "Methods, definitions, and caveats for every indicator"
+date: last-modified
+author: "Kailas Venkitasubramanian"
+toc: true
+toc-depth: 3
+toc-location: left
+number-sections: true
+format:
+  html:
+    theme: cosmo
+    code-copy: true
+    embed-resources: true
+    mermaid:
+      theme: neutral
+---
+
+::: callout-note
+**Living document.** An accessible reference for the methodological choices behind the
+Carolinas Regional Explorer. **Part I** covers global methods shared across indicators; **Part II** is a
+per-indicator catalog. Update whenever methods change or indicators are added/modified. Engineering
+details are in the *Data Pipeline Technical Documentation*.
+:::
+
+# Scope & geography
+
+The Explorer covers the **14-county Charlotte region**: 11 North Carolina counties (Anson, Cabarrus,
+Catawba, Cleveland, Gaston, Iredell, Lincoln, Mecklenburg, Rowan, Stanly, Union) and 3 South Carolina
+counties (Chester, Lancaster, York). The **publish geography is the 2020 Census tract** (~752 tracts);
+indicators are also rolled up to **county** and **region** for context.
+
+Every indicator is designed to update annually or biennially. Each carries its source and
+vintage, a 90% margin of error where applicable, and a reliability flag.
+
+# Part I — Global methodology
+
+## ACS estimates and comparability {#sec-acs}
+
+Most indicators come directly from the **American Community Survey (ACS) 5-year estimates**, published
+at the tract level. Two properties drive how we handle them:
+
+- **They are survey estimates with sampling error.** We always carry the margin of error (@sec-moe).
+- **5-year vintages overlap.** The 2020–2024 and 2019–2023 estimates share four years of sample, so
+  adjacent years are not independent. We therefore treat the annual series as a **rolling 5-year**
+  estimate and only compute change and statistical significance between non-overlapping periods:
+
+| Comparable period | Endpoint year used |
+|---|---|
+| 2010–2014 | 2014 |
+| 2015–2019 | 2019 |
+| 2020–2024 | 2024 |
+
+The ACS indicators carry the full annual series 2014–2024 (each year is a rolling 5-year estimate).
+For a selected tract the app reports two non-overlapping comparable changes, the **5-year**
+(latest−5 → latest) and **10-year** (latest−10 → latest), each with the 90% significance test
+(@sec-moe). These periods are **derived from the latest year**, so they advance automatically: when
+2025 is added they become 2020→2025 and 2015→2025. The non-overlapping endpoints are also derived in
+the pipeline (`{latest, latest−5, latest−10}`), so adding a year to `region.acs.annual_years` is the
+only change needed.
+
+## Margins of error & reliability {#sec-moe}
+
+ACS publishes a **90% margin of error (MOE)** with each estimate. We convert and propagate it
+consistently.
+
+- **Standard error:** $SE = MOE / 1.645$.
+- **Coefficient of variation:** $CV = SE / |estimate| \times 100\%$.
+- **Reliability flag:** `ok` (CV ≤ 15%), `caution` (15% < CV ≤ 30%), `unreliable` (CV > 30%).
+
+**Propagation (Census formulas).** For derived measures:
+
+- **Aggregated counts** (sum of estimates): $MOE_{sum} = \sqrt{\sum_i MOE_i^2}$.
+- **Proportion** $p = num/den$ where the numerator is a subset of the denominator:
+  $$MOE_p = \frac{1}{den}\sqrt{MOE_{num}^2 - p^2\, MOE_{den}^2}$$
+  If the radicand is negative, we fall back to the ratio formula (per Census guidance).
+- **Ratio** $R = num/den$ where the numerator is **not** a subset of the denominator:
+  $$MOE_R = \frac{1}{den}\sqrt{MOE_{num}^2 + R^2\, MOE_{den}^2}$$
+
+**Statistical significance of a difference** (90%) between two estimates:
+$$\frac{|e_1 - e_2|}{\sqrt{SE_1^2 + SE_2^2}} > 1.645$$
+Used only between non-overlapping comparable periods (@sec-acs).
+
+::: callout-tip
+At the tract level, small-population rates often have high CVs (frequently `caution`/`unreliable`).
+This is inherent to ACS tract data — the app surfaces the MOE band and flag so users interpret
+accordingly, rather than hiding it.
+:::
+
+CDC PLACES publishes a **95% confidence interval** instead of a 90% MOE; we convert the CI half-width
+to a 90%-equivalent MOE ($\times\,1.645/1.96$) so reliability is comparable with ACS.
+
+## Geographic harmonization (2010 → 2020 tracts) {#sec-harmonize}
+
+ACS 5-year estimates through **2019** use **2010 census tracts**; **2020 onward** use **2020 tracts**.
+In this region 611 (2010) tracts became 752 (2020) tracts; 126 of the 2010 tracts changed. To make
+the time series comparable on a single 2020 geography we build a **population-weighted crosswalk**: each
+2010 tract's value is allocated to 2020 tracts in proportion to the **2020 Census block population**
+that falls in each piece. Concretely, using the Census 2010↔2020 **block** comparability file, each 2020
+block's population is apportioned across the 2010 tracts it overlaps in proportion to the overlap land
+area (a dasymetric refinement — a block that straddles two old tracts contributes to both, rather than
+being assigned whole to the larger overlap); those apportioned populations are then summed to
+$$afact(t_{10}\!\to\! t_{20}) = \frac{\text{2020 block population apportioned to } (t_{10}\cap t_{20})}{\text{2020 block population apportioned to } t_{10}}$$
+
+Allocation happens on the **raw variables before indicator calc**:
+
+- **Counts:** $count_{20} = \sum_{t_{10}} count_{10}\cdot afact$.
+- **Margins of error:** $MOE_{20} = \sqrt{\sum (afact\cdot MOE_{10})^2}$ (independence approximation).
+- **Medians / averages / indices:** population-weighted average of the contributing 2010-tract values.
+
+```{mermaid}
+flowchart LR
+  T10[2010 tract A] -->|afact 0.6 by population| T20X[2020 tract X]
+  T10 -->|afact 0.4| T20Y[2020 tract Y]
+  T10B[2010 tract B] -->|afact 1.0| T20X
+```
+
+**Why population (not area):** area weighting assumes people are spread uniformly within a tract, which
+badly misallocates tracts that split into pieces of widely different density. For example, a small-but-
+dense 2020 tract that holds ~21% of an old tract's people gets only ~0.4% under area weighting but its
+true ~21% under population weighting. Population weighting is used by default; an area-weighted crosswalk
+remains as a fallback. This harmonization raised comparable-period coverage from ~480 to ~749 of 752
+tracts.
+
+**Known limitation — medians.** Medians (income, age) are harmonized as a population-weighted **average of
+the contributing tracts' medians**. This is a pragmatic approximation, not the true pooled median: a mean
+of medians is biased whenever the within-tract distributions differ in shape, and the bias has no
+guaranteed sign. It matters only for the ~126 changed 2010 tracts in pre-2020 years; the unbiased fix is
+to reconstruct medians from the afact-weighted **binned** ACS distributions (e.g. B19001 income brackets,
+B01001 age brackets) by interpolation, a planned refinement. Readers should treat pre/post-2020 *median*
+trends across changed tracts with corresponding caution.
+
+## CDC PLACES time series {#sec-places}
+
+CDC PLACES uses **multilevel regression and poststratification (MRP)** on Behavioral Risk Factor
+Surveillance System (BRFSS) data to produce model-based tract-level health prevalence estimates.
+Each annual release is a **fresh model fit** — not a revision of prior estimates. See @sec-moe for
+the CI-to-MOE conversion applied to all PLACES indicators.
+
+### Multi-release stitching
+
+CRXP draws on **six PLACES releases** (2020–2025). Rather than using only the most recent snapshot,
+the pipeline stitches all six into a per-indicator time series using a **newest-release-wins** rule:
+where multiple releases report the same data year, the most recent release's estimate is retained.
+
+Per-measure cadence varies across the resulting series:
+
+- **Most established measures** (obesity, diabetes, smoking, mental distress, etc.) span data years
+  **2018–2023**.
+- **Some biennial measures** appear in odd data years only, e.g. high blood pressure: 2017, 2019,
+  2021, 2023.
+- **Health-Related Social Needs (HRSN) measures** (food insecurity, housing insecurity,
+  transportation barriers, social-emotional support) cover **2022–2023** only.
+- **Loneliness** has **2023** only.
+
+### Tract-vintage harmonization (provenance-driven)
+
+PLACES shifted its census-tract geography between releases: the **2020–2023 releases** use **2010
+census tracts**; the **2024–2025 releases** use **2020 census tracts**. To unify the series on the
+same 2020-tract geography the app uses, the pipeline applies a **provenance-driven** approach: every
+fetched row is tagged with its source release's tract vintage, and only 2010-vintage rows are
+harmonized; 2020-native rows pass through untouched. This logic is correct regardless of which
+data year a given measure happens to report in each release.
+
+Because PLACES publishes **rates, not raw counts**, allocation uses a **population-weighted
+pseudo-count**:
+
+1. **Reconstruct cases:** $cases_{10} = (prevalence_{\%} / 100) \times pop_{10}$, where $pop$ is the
+   total 2010-tract population (the adult-only denominator `totalpop18plus` is absent from pre-2024
+   PLACES releases, so total population is the harmonization weight; the pseudo-count is used
+   only as a weight, never published as a denominator).
+2. **Allocate via crosswalk:** cases and population are distributed from each 2010 tract to its
+   overlapping 2020 tracts using the committed population-weighted `afact` weights (the same
+   crosswalk used for ACS — see @sec-harmonize).
+3. **Recompute the rate:** $prevalence_{\%,20} = 100 \times \Sigma\,cases_{20} / \Sigma\,pop_{20}$.
+4. **Combine MOEs in quadrature:** $MOE_{20} = \sqrt{\sum (afact \cdot MOE_{10})^2}$.
+
+County boundaries are stable across tract vintages, so county data is **not harmonized**; county
+releases are stitched newest-release-wins directly. Because the 2020 county release uses a legacy
+name-keyed schema with no FIPS codes, the county/region series begins in 2019, one year later than the most-established tract measures begin.
+
+### Temporal comparability: PLACES estimates are *not* for trend analysis {#sec-places-trend}
+
+The multi-release series above is assembled so users can read each year's **level** in context — it is
+**not** a basis for measuring change over time, and the platform deliberately shows no change figure for
+these indicators. CDC is explicit on this point:
+
+> "The current modeling procedure does not support using the estimates to track changes at the local
+> level over time." — CDC PLACES, *Using the Data* FAQ
+> (<https://www.cdc.gov/places/faqs/using-data/index.html>)
+
+Two structural features of the model make year-to-year (or release-to-release) comparison invalid:
+
+1. **Sub-county geographies (tract, place, ZCTA) hold the population distribution fixed.** Estimates are
+   poststratified to a fixed census population structure rather than re-based annually, so a single
+   year's estimate is not a true point-in-time snapshot that can be differenced against another year.
+2. **Time is not a model variable.** Even at the county level, where annual population estimates *are*
+   used, time is not included in the model, so the series cannot support trend assessment at *any*
+   geography.
+
+Compounding this, apparent movement is frequently an artifact rather than real change: the BRFSS
+questionnaire and case definitions change between cycles (CDC specifically flags a rise in
+colorectal-cancer-screening prevalence caused by a survey-question change), each release re-fits the
+model with different BRFSS input years and ACS denominators, and the **2020 BRFSS** is distorted by
+pandemic-era data-collection effects. There is therefore **no pair of PLACES releases or data years that
+can be validly compared for change** — not across releases (different models/inputs), not within a
+release (each measure carries a single year), and not at the county level (time is unmodelled).
+
+**How the platform honours this.** PLACES indicators are flagged in the data contract with
+`crossReleaseTrend = true`. Every downstream view that would otherwise express change is suppressed for
+them, while the levels and their uncertainty bands are still shown:
+
+| Surface | ACS / measured indicators | CDC PLACES (`crossReleaseTrend`) |
+|---|---|---|
+| Trend-chart band note | "90% MOE; ACS 5-year estimates are rolling — compare only non-overlapping periods" | "90% model uncertainty interval; read each year's level, not the change between years" |
+| Comparable-period change markers (5-/10-year, significance-tested) | shown | **hidden** |
+| Custom-area report *Change* column | shown, over each indicator's own period | **rendered as "—"** |
+| County-profile card delta ("since YYYY") | shown | **hidden** (the level sparkline is retained) |
+
+This is a direct application of the platform's core principle — *never let a downstream view assert more
+certainty than the source supports* (@sec-moe). PLACES model-based estimates are genuinely valuable for
+showing **where** health burden concentrates; they are not a longitudinal instrument, and the app
+is built to keep users from reading them as one.
+
+## Small-area estimation (current status) {#sec-sae}
+
+We use a **tiered** approach:
+
+- **Direct tract estimates (current):** ACS published tract tables, the great majority of indicators.
+- **Model-based small-area estimates (current):** **CDC PLACES** health measures use multilevel
+  regression and poststratification (MRP) on BRFSS data, published per tract with confidence intervals.
+
+## Spatial statistics {#sec-spatial}
+
+- **Z-scores:** per indicator/year, standardized to mean 0, sd 1 across tracts.
+- **Class breaks:** **quantile** breaks computed **once and held consistent across years** so map color
+  means the same value in every year.
+- **Spatial weights:** k-nearest-neighbor (k = 8), row-standardized, from each tract's
+  **representative point** — a point guaranteed to lie inside the polygon (unlike a bounding-box
+  midpoint, which for L-shaped or coastal tracts can fall outside and distort the neighbor graph).
+- **Local Moran's I / LISA:** local spatial autocorrelation classified into **High-High, Low-Low,
+  High-Low, Low-High,** or **not significant**. Significance is a **conditional-permutation** pseudo
+  p-value: tract *i*'s value is held fixed while its hypothetical neighbours are drawn **without
+  replacement** from the *other* tracts' z-scores (999 permutations). Because ~752 tracts are tested at
+  once, the pseudo p-values are then **FDR-controlled (Benjamini–Hochberg, α = 0.05)** before a tract is
+  called significant — without this correction, dozens of tracts would light up by chance alone. The app
+  consumes these precomputed quadrants; it does not recompute LISA client-side.
+
+## Raster-derived indicators — zonal statistics {#sec-raster}
+
+Environment indicators come from the **USGS National Land Cover Database (NLCD)**, a 30-metre
+satellite land-cover product, accessed auth-free as region-clipped GeoTIFFs from the MRLC Web Coverage
+Service (EPSG:5070). Tract values are **area-weighted zonal statistics** computed with `exactextract`,
+which uses the **exact fraction** of each pixel falling inside a tract (not just pixel centroids):
+
+- **Class share** (forest, farmland, wetlands, developed): the coverage-weighted fraction of a tract's
+  non-nodata area whose land-cover class is in the indicator's class set, e.g. forest = NLCD classes
+  41 (deciduous) + 42 (evergreen) + 43 (mixed).
+- **Continuous mean** (impervious surface): the coverage-weighted mean of the percent-impervious raster.
+
+NLCD is a **wall-to-wall classification**, so these indicators carry **no sampling margin of error**
+(they have classification accuracy instead); the app shows no error band or reliability flag for them.
+The **Annual NLCD** product supplies land cover for most years from 2001 onward, so these indicators
+carry a multi-year series (the year slider shows the available years) rather than only decadal snapshots.
+
+**Light pollution** uses the **EOG VIIRS Nighttime Lights (VNL V2)** annual composites (median-masked):
+the area-weighted **mean radiance** (nW/cm²/sr) per tract, for 2014 / 2019 / 2024. EOG downloads are
+account-gated (the global GeoTIFFs are fetched once, manually or via the EOG OAuth API, then clipped
+to the region and cached); like NLCD it is a measurement, not a survey, so it carries no MOE.
+**Tree canopy** uses the **NLCD Tree Canopy Cover (TCC, USFS)** continuous percent-canopy product
+(per-year GeoTIFFs read directly from the supplied zip-of-zips via GDAL `/vsizip/`, clipped once and
+cached): area-weighted **mean canopy %** per tract, annual, 2015–2023. Canopy % is broader than the
+forest land-cover class (it includes trees in developed/suburban areas), so its values run higher.
+
+## Bivariate analysis {#sec-bivariate}
+
+Two indicators are each split into **terciles** (rank thirds of the raw values; equivalent to terciles
+of their standardized values) and combined on a **3×3 grid**, coloring each tract by its joint class.
+The legend is interactive: hovering a cell highlights the matching tracts. Useful for seeing where two
+conditions co-occur (e.g. high poverty × low insurance).
+
+Alongside the map, a **correlation scatter** plots the two indicators' **standardized (z-score)** values
+(one dot per tract, colored by its 3×3 class), with **marginal distributions**, a least-squares
+**regression line**, and **both the Pearson and Spearman (rank) correlations**. Spearman is shown
+alongside Pearson because most indicators are skewed and the choropleth itself colors by rank. Both are
+presented as **descriptive only**: tracts are spatially autocorrelated, so the effective sample size is
+far below the tract count and a naïve significance test would be badly anti-conservative; the scatter
+therefore reports no p-value. Hovering a dot highlights the tract on the map (and vice-versa) and shows
+its neighborhood name.
+
+## County and region estimates {#sec-agg}
+
+County and region values are **not** computed by averaging tracts — that is biased for rates (it
+over-weights small tracts) and invalid for medians and indices (a county median cannot be recovered from
+tract medians). Instead:
+
+- **County** = the **authoritative published county estimate** from each source. County boundaries are
+  stable across 2010/2020, so the engine fetches each county directly from ACS county tables (with the smaller
+  county MOE), the CDC PLACES county model (`swc5-untb`), or county zonal statistics for satellite measures
+  (land-area-weighted tract values, which equal the county zonal value), and runs the **same** indicator
+  calculator used for tracts. This gives the correct value and a proper county MOE for every kind.
+- **Region** = pooled by indicator kind: **counts** are summed; **rates/proportions** use the pooled
+  numerator ÷ pooled denominator (with the Census proportion/ratio MOE on the summed components, the MOE
+  variables combined in quadrature); **medians and indices** use a population-weighted mean of the county
+  values (a documented approximation, as an exact regional median needs microdata).
+
+This is implemented in `aggregate.build_county_region`, persisted to a `county_indicators` warehouse table
+(geoid = county FIPS, plus a `REGION` row), and consumed by `export_crxp.build_aggregates` →
+`aggregates.json` (`countyAvg`/`regionAvg` with `countyMoe`/`regionMoe`). The app labels these lines
+**County** and **Region**.
+
+**Note.** The one remaining simple unweighted mean is the *ad-hoc average of a user-selected set of tracts*
+in a custom report (`series.js seriesForSet`) — a selection summary, not a published geography.
+
+## Density and land area {#sec-density}
+
+Density indicators divide a count by **2020 tract land area in square miles** (from the Census
+relationship files, water excluded). Because both estimate and MOE are divided by the same constant,
+**CV and reliability are unchanged**.
+
+## Data sources & sustainability {#sec-sources}
+
+| Source | Used for | Cadence | Sustainability |
+|---|---|---|---|
+| ACS 5-year (Census API / Census Reporter) | demographics, economy, education, housing, transportation, insurance, disability | annual (rolling) | active |
+| CDC PLACES | adult health & wellbeing (16 measures surfaced; 40 staged) | multi-release series (2020–2025 releases; 2017–2023 data years) | active |
+| USGS NLCD (via MRLC Web Coverage Service, WCS) | environment (forest, farmland, wetlands, developed, impervious) | ~biennial series (2001–2021) | active |
+| EOG VIIRS Nighttime Lights (VNL V2) | environment (light pollution) | annual (2012–) | active (account-gated download) |
+
+Some historically useful tract sources are **static / discontinued** and, if added later, must be
+labeled with their last vintage: Eviction Lab (≤2018), USDA Food Access (2019), HUD LAI (2019),
+USALEEP life expectancy (2010–2015). (The ACS *subject* table S1401 jams its public/private split at the
+tract level, but the **detailed table B14002** publishes it cleanly, so *Private school enrollment* (id 13)
+is a current, fully reproducible indicator with a margin of error — see its row above.)
+
+# Part II — Indicator catalog
+
+Definitions below are the canonical reference. Direction "—" means neither higher nor lower is
+inherently better. All ACS indicators are 2020-tract, harmonized (@sec-harmonize), with MOE
+(@sec-moe); CDC indicators are model-based (@sec-sae).
+
+*65 indicators across 8 of 10 themes (Safety and Arts & Culture not yet populated).*
+
+### Character
+
+| ID | Indicator | Source | Table/Measure | Kind | Direction | Definition |
+|----|-----------|--------|---------------|------|-----------|------------|
+| 1 | Older adults (65+) | ACS | B01001 | proportion | — | Share of residents aged 65 and older |
+| 2 | Youth (under 18) | ACS | B01001 | proportion | — | Share of residents under age 18 |
+| 3 | Veterans | ACS | B21001 | proportion | — | Share of civilian adults who are military veterans |
+| 4 | Asian residents | ACS | B03002 | proportion | — | Residents who are Asian (non-Hispanic) |
+| 5 | Black residents | ACS | B03002 | proportion | — | Residents who are Black or African American (non-Hispanic) |
+| 6 | Hispanic or Latino residents | ACS | B03002 | proportion | — | Residents who are Hispanic or Latino |
+| 7 | White residents | ACS | B03002 | proportion | — | Residents who are White (non-Hispanic) |
+| 8 | Other races | ACS | B03002 | proportion | — | Residents of other or multiple races (non-Hispanic) |
+| 21 | Median age | ACS | B01002 | median | — | Median age of residents, in years |
+| 34 | Limited-English-speaking households | ACS | C16002 | proportion | more need | Households where no one 14+ speaks English "very well" |
+| 50 | Total population | ACS | B01003 | count | — | Total resident population |
+| 51 | Population density | ACS | B01003 ÷ land area | density | — | Residents per square mile of land area (@sec-density) |
+| 53 | Households with children | ACS | B11005 | proportion | — | Households with one or more people under 18 |
+| 54 | Households with seniors | ACS | B11007 | proportion | — | Households with one or more people 65+ |
+| 63 | Foreign-born residents | ACS | B05012 | proportion | — | Residents born outside the United States |
+
+### Economy
+
+| ID | Indicator | Source | Table/Measure | Kind | Direction | Definition |
+|----|-----------|--------|---------------|------|-----------|------------|
+| 9 | Employment rate | ACS | B23025 | proportion | better | Employed ÷ population age 16+ (employment-population ratio) |
+| 10 | Households with internet access | ACS | B28002 | proportion | better | Households with a broadband internet subscription |
+| 20 | Median household income | ACS | B19013 | median | better | Median annual household income |
+| 30 | Poverty rate | ACS | B17001 | proportion | more need | People with income below the federal poverty level |
+| 31 | Unemployment rate | ACS | B23025 | proportion | more need | Unemployed ÷ civilian labor force |
+| 33 | Households receiving SNAP | ACS | B22010 | proportion | more need | Households that received SNAP in the past year |
+| 57 | Income inequality (Gini) | ACS | B19083 | index | more need | Gini index of income inequality (0 = equal, 1 = unequal) |
+| 59 | Management & professional occupations | ACS | C24010 | proportion | — | Employed residents in management, business, science & arts occupations (@sec-whitecollar) |
+| 64 | Child poverty (families w/ children) | ACS | B17010 | proportion | more need | Families with related children <18 below poverty ÷ all families with related children (@sec-childpov) |
+
+### Education
+
+| ID | Indicator | Source | Table/Measure | Kind | Direction | Definition |
+|----|-----------|--------|---------------|------|-----------|------------|
+| 11 | Bachelor's degree or higher | ACS | B15003 | proportion | better | Adults 25+ with a bachelor's degree or higher |
+| 12 | High school diploma or higher | ACS | B15003 | proportion | better | Adults 25+ with at least a high school diploma |
+| 58 | School enrollment (age 3+) | ACS | B14001 | proportion | — | Population age 3+ enrolled in school |
+| 13 | Private school enrollment | ACS | B14002 | proportion | — | Students enrolled in private school ÷ all students enrolled (private + public, all levels) (@sec-legacy) |
+
+### Health
+
+| ID | Indicator | Source | Table/Measure | Kind | Direction | Definition |
+|----|-----------|--------|---------------|------|-----------|------------|
+| 40 | No health insurance (adults 18–64) | CDC PLACES | ACCESS2 | model-based | more need | Adults 18–64 without health insurance |
+| 41 | Obesity (adults) | CDC PLACES | OBESITY | model-based | more need | Adults with obesity (BMI ≥ 30) |
+| 42 | Diabetes (adults) | CDC PLACES | DIABETES | model-based | more need | Adults ever told they have diabetes |
+| 43 | Frequent mental distress (adults) | CDC PLACES | MHLTH | model-based | more need | Adults with 14+ days of poor mental health in the past month |
+| 44 | Depression (adults) | CDC PLACES | DEPRESSION | model-based | more need | Adults ever diagnosed with depression |
+| 45 | High blood pressure (adults) | CDC PLACES | BPHIGH | model-based | more need | Adults ever told they have high blood pressure |
+| 46 | Current asthma (adults) | CDC PLACES | CASTHMA | model-based | more need | Adults who currently have asthma |
+| 47 | Current smoking (adults) | CDC PLACES | CSMOKING | model-based | more need | Adults who currently smoke cigarettes |
+| 48 | No leisure-time physical activity | CDC PLACES | LPA | model-based | more need | Adults reporting no leisure-time physical activity |
+| 49 | Fair or poor health (adults) | CDC PLACES | GHLTH | model-based | more need | Adults reporting fair or poor general health |
+| 65 | Routine checkup (adults) | CDC PLACES | CHECKUP | model-based | better | Adults with a routine checkup in the past year |
+| 66 | Food insecurity (adults) | CDC PLACES | FOODINSECU | model-based | more need | Adults experiencing food insecurity in the past year |
+| 67 | Housing insecurity (adults) | CDC PLACES | HOUSINSECU | model-based | more need | Adults experiencing housing insecurity in the past year |
+| 68 | Transportation barriers (adults) | CDC PLACES | LACKTRPT | model-based | more need | Adults lacking reliable transportation in the past year |
+| 69 | Lack of social & emotional support | CDC PLACES | EMOTIONSPT | model-based | more need | Adults who lack needed social and emotional support |
+| 77 | Loneliness (adults) | CDC PLACES | LONELINESS | model-based | more need | Adults who report feeling lonely |
+| 61 | Health insurance coverage | ACS | B27001 | proportion | better | Residents (all ages) with health insurance (@sec-insurance) |
+| 62 | Disability (any) | ACS | B18101 | proportion | — | Civilian noninstitutionalized residents with a disability |
+
+### Engagement
+
+| ID | Indicator | Source | Table/Measure | Kind | Direction | Definition |
+|----|-----------|--------|---------------|------|-----------|------------|
+| 81 | Residential stability | ACS | B07001 | proportion | — | Residents who lived in the same home one year ago (a proxy for rootedness, not direct civic participation) |
+
+### Housing
+
+| ID | Indicator | Source | Table/Measure | Kind | Direction | Definition |
+|----|-----------|--------|---------------|------|-----------|------------|
+| 14 | Owner-occupied homes | ACS | B25003 | proportion | better | Occupied homes that are owner-occupied |
+| 15 | Occupied homes | ACS | B25002 | proportion | — | Housing units that are occupied |
+| 16 | Vacant homes | ACS | B25002 | proportion | more need | Housing units that are vacant |
+| 32 | Rent-burdened households | ACS | B25070 | proportion | more need | Renter households paying 30%+ of income on gross rent (of those with a computable rent-to-income ratio) |
+| 52 | Average household size | ACS | B25010 | average | — | Average people per occupied household |
+| 55 | Owner cost burden | ACS | B25091 | proportion | more need | Owner households paying 30%+ of income on housing costs (of those with a computable cost-to-income ratio) |
+| 56 | Homes built since 2010 | ACS | B25034 | proportion | — | Housing units built in 2010 or later (@sec-newhomes) |
+
+### Transportation
+
+| ID | Indicator | Source | Table/Measure | Kind | Direction | Definition |
+|----|-----------|--------|---------------|------|-----------|------------|
+| 17 | Households without a vehicle | ACS | B08201 | proportion | more need | Households with no vehicle available |
+| 18 | Commute over 20 minutes | ACS | B08303 | proportion | more need | Workers with a commute of 20+ minutes |
+| 19 | Drove alone to work | ACS | B08301 | proportion | — | Workers who commute by driving alone |
+| 60 | Mean travel time to work | ACS | B08013 ÷ B08303 | rate | more need | Average one-way commute time, minutes (@sec-traveltime) |
+
+### Environment
+
+Raster-derived (NLCD), area-weighted zonal statistics (@sec-raster); no sampling MOE. Land-cover/impervious
+indicators carry the ~biennial NLCD series (2001, 2004, 2006, 2008, 2011, 2013, 2016, 2019, 2021); tree
+canopy is annual (2015–2023) from NLCD Tree Canopy Cover.
+
+| ID | Indicator | Source | Classes/stat | Direction | Definition |
+|----|-----------|--------|--------------|-----------|------------|
+| 70 | Forest cover | NLCD land cover | classes 41,42,43 | — | Share of land that is forest (deciduous/evergreen/mixed) |
+| 71 | Cropland & farmland | NLCD land cover | classes 81,82 | — | Share of land in agriculture (pasture/hay + cultivated crops) |
+| 72 | Wetlands | NLCD land cover | classes 90,95 | — | Share of land that is wetland (woody + emergent herbaceous) |
+| 73 | Developed land | NLCD land cover | classes 21–24 | more need | Share of land developed (open space → high intensity) |
+| 74 | Impervious surface | NLCD impervious | mean % | more need | Average share of surface that is impervious |
+| 75 | Light pollution | EOG VIIRS VNL V2 | mean radiance | more need | Mean nighttime-light radiance (nW/cm²/sr); 2014/2019/2024 (three vintages surfaced from an annual source) |
+| 76 | Tree canopy | NLCD Tree Canopy Cover | mean % | better | Mean continuous tree-canopy cover; annual 2015–2023 |
+
+## Indicator notes (special cases)
+
+### Management & professional occupations ("white-collar") {#sec-whitecollar}
+Defined as the Census **"Management, business, science, and arts"** occupational major group
+(C24010, male + female) ÷ employed civilians 16+. This major group is the standard proxy for
+**professional/managerial ("white-collar")** work in labor-market and social-stratification research —
+it captures the professional-managerial class and is distinct from sales/office, service, and
+production/transportation (blue-collar) groups. A broader "white-collar" definition would additionally
+include sales-and-office occupations; we report the professional-managerial core for interpretability
+and consistency with the literature.
+
+### Health insurance: two complementary measures {#sec-insurance}
+- **No health insurance, adults 18–64 (id 40, CDC PLACES):** model-based adult uninsured prevalence.
+- **Health insurance coverage, all ages (id 61, ACS B27001):** direct ACS measure across all ages.
+
+They differ in population (adults vs all ages), method (model-based vs direct), and direction
+(uninsured vs insured). Use id 61 for an all-ages coverage rate; id 40 for the adult uninsured story.
+
+### Child poverty (id 64) {#sec-childpov}
+Numerator: families with related children <18 with income below poverty (married-couple + male- and
+female-householder families). Denominator: **all** families with related children <18 (the summed
+six-line denominator across below- and at/above-poverty branches of B17010). This is a *family-based*
+child-poverty measure (families with children in poverty), complementary to the overall poverty rate
+(id 30).
+
+### Homes built since 2010 (id 56) {#sec-newhomes}
+From the B25034 "year structure built" distribution, we report the share built **2010 or later** as a
+**growth/new-construction** signal, especially informative for this region's fast-growing exurbs.
+Alternatives (median year built; share built before 1980 for housing-age/condition) can be added if
+needed.
+
+B25034 **redefines its category boundaries by vintage**, so a fixed set of variable indices does not
+mean the same thing every year. From the 2015 ACS5 onward the two newest categories together span
+exactly "built 2010 or later," but in the **2014 ACS5** those same indices are "Built 2010 or later"
+plus "Built 2000 to 2009"; summing them would sweep in two extra decades and inflate 2014. The indicator
+therefore uses a **per-vintage numerator override** (`num_vars_by_year` in the config): for 2014 the
+numerator is the single "2010 or later" category; for 2015–2024 it is the two newest categories. This
+keeps the series measuring the same quantity in every year and is the one indicator where a fixed
+variable list would silently change meaning across vintages.
+
+### Mean travel time to work (id 60) {#sec-traveltime}
+Aggregate travel time (B08013) ÷ workers who commute (B08303), giving mean one-way minutes. This is a
+**rate** (numerator not a subset of the denominator), so the ratio-MOE formula applies. It complements
+the categorical "commute over 20 minutes" (id 18).
+
+### Private school (id 13) — recreated as a current indicator {#sec-legacy}
+Originally a legacy orphan (committed app values only, no config, no margin of error) because the ACS
+*subject* table S1401 jams its public/private split at the tract level. It has been **rebuilt from the
+detailed table B14002** (private-school enrollees across all levels ÷ all enrolled students), so it now
+carries the full 2014–2024 series, a margin of error and reliability flags, and an authoritative county
+estimate like every other indicator.
+
+### Median harmonization caveat {#sec-medians}
+For the approximation applied to medians, averages, and indices on pre-2020 split/merged tracts, see
+@sec-harmonize ("Known limitation — medians").

@@ -1,0 +1,73 @@
+id: 55
+slug: owner-cost-burden
+label: Owner cost burden
+theme: housing
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B25091
+  kind: proportion
+  num_vars:
+  - B25091_008E
+  - B25091_009E
+  - B25091_010E
+  - B25091_011E
+  - B25091_019E
+  - B25091_020E
+  - B25091_021E
+  - B25091_022E
+  num_moe_vars:
+  - B25091_008M
+  - B25091_009M
+  - B25091_010M
+  - B25091_011M
+  - B25091_019M
+  - B25091_020M
+  - B25091_021M
+  - B25091_022M
+  # Denominator = owners with a computable cost-to-income ratio: mortgaged brackets _003..._011
+  # plus without-mortgage brackets _014..._022, EXCLUDING the "Not computed" cells (_012, _023 =
+  # zero/negative income). Matches standard cost-burden practice; including them biases the rate down.
+  den_vars:
+  - B25091_003E
+  - B25091_004E
+  - B25091_005E
+  - B25091_006E
+  - B25091_007E
+  - B25091_008E
+  - B25091_009E
+  - B25091_010E
+  - B25091_011E
+  - B25091_014E
+  - B25091_015E
+  - B25091_016E
+  - B25091_017E
+  - B25091_018E
+  - B25091_019E
+  - B25091_020E
+  - B25091_021E
+  - B25091_022E
+  den_moe_vars:
+  - B25091_003M
+  - B25091_004M
+  - B25091_005M
+  - B25091_006M
+  - B25091_007M
+  - B25091_008M
+  - B25091_009M
+  - B25091_010M
+  - B25091_011M
+  - B25091_014M
+  - B25091_015M
+  - B25091_016M
+  - B25091_017M
+  - B25091_018M
+  - B25091_019M
+  - B25091_020M
+  - B25091_021M
+  - B25091_022M
+description: Share of owner households (with a computable ratio) paying 30%+ of income on housing costs
+meta_why: Owner cost burden measures affordability stress among homeowners (with and
+  without a mortgage).

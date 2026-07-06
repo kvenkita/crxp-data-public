@@ -1,0 +1,15 @@
+id: 21
+slug: median-age
+label: Median age
+theme: character
+format: years
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B01002
+  kind: median
+  estimate_var: B01002_001E
+  moe_var: B01002_001M
+description: Median age of residents, in years
+meta_why: Median age summarizes a neighborhood's age profile.

@@ -1,0 +1,33 @@
+id: 18
+slug: long-commute
+label: Commute over 20 minutes
+theme: transportation
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B08303
+  kind: proportion
+  num_vars:
+  - B08303_006E
+  - B08303_007E
+  - B08303_008E
+  - B08303_009E
+  - B08303_010E
+  - B08303_011E
+  - B08303_012E
+  - B08303_013E
+  num_moe_vars:
+  - B08303_006M
+  - B08303_007M
+  - B08303_008M
+  - B08303_009M
+  - B08303_010M
+  - B08303_011M
+  - B08303_012M
+  - B08303_013M
+  den_var: B08303_001E
+  den_moe_var: B08303_001M
+description: Workers with a commute of 20+ minutes
+meta_why: Longer commutes cut into time, raise costs, and lower well-being.

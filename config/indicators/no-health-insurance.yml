@@ -1,0 +1,15 @@
+id: 40
+slug: no-health-insurance
+label: No health insurance (adults 18–64)
+theme: health
+format: percent
+decimals: 1
+higher_is_better: false
+source: cdc_places
+cdc:
+  measure_id: ACCESS2
+  data_value_type: Crude prevalence
+description: Share of adults aged 18–64 without health insurance
+meta_why: >
+  Lack of health insurance is a major barrier to care and a strong signal of
+  unmet medical need and financial risk in a community.

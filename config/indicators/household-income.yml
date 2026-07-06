@@ -1,0 +1,21 @@
+# Indicator definition (config-driven). Vertical-slice example: ACS median, direct + MOE.
+id: 20
+slug: household-income
+label: Median household income
+theme: economy
+format: dollar
+decimals: 0
+higher_is_better: true
+color_scheme_from_theme: true     # ramp comes from the theme color in the app
+
+source: acs
+acs:
+  table: B19013
+  kind: median                    # value = estimate directly; moe = estimate MOE directly
+  estimate_var: B19013_001E
+  moe_var: B19013_001M
+
+description: Median annual household income
+meta_why: >
+  Median household income is a core measure of economic well-being and a strong
+  correlate of health, education, and opportunity.

@@ -1,0 +1,17 @@
+id: 51
+slug: population-density
+label: Population density (per sq mi)
+theme: character
+format: number
+decimals: 0
+higher_is_better: null
+source: acs
+acs:
+  table: B01003
+  kind: count
+  estimate_var: B01003_001E
+  moe_var: B01003_001M
+  per_land_area: true
+description: Residents per square mile of land area
+meta_why: Density shapes transit viability, infrastructure cost, and the urban–rural
+  character of a place.

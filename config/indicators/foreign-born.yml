@@ -1,0 +1,20 @@
+id: 63
+slug: foreign-born
+label: Foreign-born residents
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B05012
+  kind: proportion
+  num_vars:
+  - B05012_003E
+  num_moe_vars:
+  - B05012_003M
+  den_var: B05012_001E
+  den_moe_var: B05012_001M
+description: Residents born outside the United States
+meta_why: The foreign-born share informs language access, immigrant services, and
+  cultural diversity.

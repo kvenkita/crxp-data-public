@@ -1,0 +1,19 @@
+id: 31
+slug: unemployment-rate
+label: Unemployment rate
+theme: economy
+format: percent
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B23025
+  kind: proportion
+  num_vars: [B23025_005E]            # unemployed (civilian labor force)
+  num_moe_vars: [B23025_005M]
+  den_var: B23025_003E               # civilian labor force
+  den_moe_var: B23025_003M
+description: Share of the civilian labor force that is unemployed
+meta_why: >
+  The unemployment rate reflects local labor-market conditions and household
+  economic stress more sensitively than the overall employment rate.

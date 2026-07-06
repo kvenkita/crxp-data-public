@@ -1,0 +1,21 @@
+id: 9
+slug: employment
+label: Employment rate
+theme: economy
+format: percent
+decimals: 1
+higher_is_better: true
+source: acs
+acs:
+  table: B23025
+  kind: proportion
+  num_vars:
+  - B23025_004E
+  num_moe_vars:
+  - B23025_004M
+  den_var: B23025_001E               # population 16 and over (employment-population ratio base)
+  den_moe_var: B23025_001M
+description: Share of the population 16 and older that is employed (employment-population ratio)
+meta_why: >
+  The employment-population ratio counts everyone 16 and older, including people not looking
+  for work, so it reveals labor-force participation gaps the unemployment rate alone can miss.

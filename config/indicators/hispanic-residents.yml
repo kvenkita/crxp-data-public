@@ -1,0 +1,19 @@
+id: 6
+slug: hispanic-residents
+label: Hispanic or Latino residents
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B03002
+  kind: proportion
+  num_vars:
+  - B03002_012E
+  num_moe_vars:
+  - B03002_012M
+  den_var: B03002_001E
+  den_moe_var: B03002_001M
+description: Share of residents who are Hispanic or Latino
+meta_why: Supports language access and equitable outreach.

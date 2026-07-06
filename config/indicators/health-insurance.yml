@@ -1,0 +1,54 @@
+id: 61
+slug: health-insurance
+label: Health insurance coverage
+theme: health
+format: percent
+decimals: 1
+higher_is_better: true
+source: acs
+acs:
+  table: B27001
+  kind: proportion
+  num_vars:
+  - B27001_004E
+  - B27001_007E
+  - B27001_010E
+  - B27001_013E
+  - B27001_016E
+  - B27001_019E
+  - B27001_022E
+  - B27001_025E
+  - B27001_028E
+  - B27001_032E
+  - B27001_035E
+  - B27001_038E
+  - B27001_041E
+  - B27001_044E
+  - B27001_047E
+  - B27001_050E
+  - B27001_053E
+  - B27001_056E
+  num_moe_vars:
+  - B27001_004M
+  - B27001_007M
+  - B27001_010M
+  - B27001_013M
+  - B27001_016M
+  - B27001_019M
+  - B27001_022M
+  - B27001_025M
+  - B27001_028M
+  - B27001_032M
+  - B27001_035M
+  - B27001_038M
+  - B27001_041M
+  - B27001_044M
+  - B27001_047M
+  - B27001_050M
+  - B27001_053M
+  - B27001_056M
+  den_var: B27001_001E
+  den_moe_var: B27001_001M
+description: Residents (all ages) with health insurance coverage
+meta_why: Insurance coverage across all ages is a core measure of access to care and
+  financial protection.

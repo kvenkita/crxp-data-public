@@ -1,0 +1,19 @@
+id: 7
+slug: white-residents
+label: White residents
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B03002
+  kind: proportion
+  num_vars:
+  - B03002_003E
+  num_moe_vars:
+  - B03002_003M
+  den_var: B03002_001E
+  den_moe_var: B03002_001M
+description: Share of residents who are White (non-Hispanic)
+meta_why: Racial/ethnic composition supports equity analysis.

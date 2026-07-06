@@ -1,0 +1,14 @@
+id: 69
+slug: social-emotional-support
+label: Lack of social & emotional support (adults)
+theme: health
+format: percent
+decimals: 1
+higher_is_better: false
+source: cdc_places
+cdc:
+  measure_id: EMOTIONSPT
+  data_value_type: Crude prevalence
+description: Share of adults who lack needed social and emotional support
+meta_why: >
+  Social connectedness is a powerful determinant of health; a lack of support signals isolation risk and weaker community ties.

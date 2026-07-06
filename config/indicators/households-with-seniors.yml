@@ -1,0 +1,20 @@
+id: 54
+slug: households-with-seniors
+label: Households with seniors
+theme: character
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B11007
+  kind: proportion
+  num_vars:
+  - B11007_002E
+  num_moe_vars:
+  - B11007_002M
+  den_var: B11007_001E
+  den_moe_var: B11007_001M
+description: Households with one or more people 65+
+meta_why: Households with seniors shape demand for accessible housing, healthcare,
+  and aging services.

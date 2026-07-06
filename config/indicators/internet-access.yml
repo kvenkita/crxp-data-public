@@ -1,0 +1,19 @@
+id: 10
+slug: internet-access
+label: Households with internet access
+theme: economy
+format: percent
+decimals: 1
+higher_is_better: true
+source: acs
+acs:
+  table: B28002
+  kind: proportion
+  num_vars:
+  - B28002_004E
+  num_moe_vars:
+  - B28002_004M
+  den_var: B28002_001E
+  den_moe_var: B28002_001M
+description: Households with a broadband internet subscription
+meta_why: Home broadband is essential for school, work, and civic life.

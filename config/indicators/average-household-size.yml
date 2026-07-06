@@ -1,0 +1,15 @@
+id: 52
+slug: average-household-size
+label: Average household size
+theme: housing
+format: number
+decimals: 2
+higher_is_better: null
+source: acs
+acs:
+  table: B25010
+  kind: median
+  estimate_var: B25010_001E
+  moe_var: B25010_001M
+description: Average number of people per occupied household
+meta_why: Household size affects housing demand, school enrollment, and crowding.

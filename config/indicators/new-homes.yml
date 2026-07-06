@@ -1,0 +1,32 @@
+id: 56
+slug: new-homes
+label: Homes built since 2010
+theme: housing
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B25034
+  kind: proportion
+  num_vars:
+  - B25034_002E
+  - B25034_003E
+  num_moe_vars:
+  - B25034_002M
+  - B25034_003M
+  # B25034 redefines its year-built categories by vintage. From 2015 on, the two
+  # newest categories (_002 + _003) together span "built 2010 or later". But in
+  # the 2014 ACS5, _002 = "Built 2010 or later" and _003 = "Built 2000 to 2009",
+  # so the same sum would sweep in 2000-2009. For 2014 the numerator is _002 only.
+  num_vars_by_year:
+    2014:
+    - B25034_002E
+  num_moe_vars_by_year:
+    2014:
+    - B25034_002M
+  den_var: B25034_001E
+  den_moe_var: B25034_001M
+description: Housing units built in 2010 or later
+meta_why: Recent construction marks where housing stock and population are growing
+  fastest.

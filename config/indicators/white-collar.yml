@@ -1,0 +1,24 @@
+id: 59
+slug: white-collar
+label: Management & professional occupations
+theme: economy
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: C24010
+  kind: proportion
+  num_vars:
+  - C24010_003E
+  - C24010_039E
+  num_moe_vars:
+  - C24010_003M
+  - C24010_039M
+  den_var: C24010_001E
+  den_moe_var: C24010_001M
+description: Employed residents in management, business, science, and arts occupations
+meta_why: This Census major occupational group is the standard proxy for professional/managerial
+  (“white-collar”) work used in labor and stratification research; it captures the
+  professional-managerial class distinct from service, sales/office, and blue-collar
+  work.

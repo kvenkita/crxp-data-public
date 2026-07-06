@@ -1,0 +1,21 @@
+id: 60
+slug: mean-travel-time
+label: Mean travel time to work (min)
+theme: transportation
+format: number
+decimals: 1
+higher_is_better: false
+source: acs
+acs:
+  table: B08013
+  kind: rate
+  num_vars:
+  - B08013_001E
+  num_moe_vars:
+  - B08013_001M
+  den_var: B08303_001E
+  den_moe_var: B08303_001M
+  multiplier: 1.0
+description: Average one-way commute time for workers (minutes)
+meta_why: Average commute time captures access to jobs and the daily time cost of
+  the transportation system.

@@ -1,0 +1,42 @@
+id: 62
+slug: disability
+label: Disability (any)
+theme: health
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B18101
+  kind: proportion
+  num_vars:
+  - B18101_004E
+  - B18101_007E
+  - B18101_010E
+  - B18101_013E
+  - B18101_016E
+  - B18101_019E
+  - B18101_023E
+  - B18101_026E
+  - B18101_029E
+  - B18101_032E
+  - B18101_035E
+  - B18101_038E
+  num_moe_vars:
+  - B18101_004M
+  - B18101_007M
+  - B18101_010M
+  - B18101_013M
+  - B18101_016M
+  - B18101_019M
+  - B18101_023M
+  - B18101_026M
+  - B18101_029M
+  - B18101_032M
+  - B18101_035M
+  - B18101_038M
+  den_var: B18101_001E
+  den_moe_var: B18101_001M
+description: Civilian noninstitutionalized residents with a disability
+meta_why: Disability prevalence informs accessibility, services, and supports across
+  the community.

@@ -1,0 +1,19 @@
+id: 15
+slug: occupied-homes
+label: Occupied homes
+theme: housing
+format: percent
+decimals: 1
+higher_is_better: null
+source: acs
+acs:
+  table: B25002
+  kind: proportion
+  num_vars:
+  - B25002_002E
+  num_moe_vars:
+  - B25002_002M
+  den_var: B25002_001E
+  den_moe_var: B25002_001M
+description: Housing units that are occupied
+meta_why: Occupancy reflects housing demand and vacancy.

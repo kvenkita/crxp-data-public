@@ -8,6 +8,7 @@ requires-python = ">=3.11"
 # depends on these versions and their bundled GDAL/PROJ. Re-pin deliberately, not incidentally.
 # The active build's GDAL/PROJ/exactextract versions are recorded in exports/.../provenance.json.
 dependencies = [
+    "numpy==2.5.0",
     "pandas==3.0.3",
     "pyarrow==24.0.0",
     "duckdb==1.5.4",

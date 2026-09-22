@@ -1,0 +1,15 @@
+id: 83
+slug: job-density
+label: Job density
+theme: economy
+format: number
+decimals: 0
+higher_is_better: null
+source: lodes
+lodes:
+  measure: job_density
+  years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022]
+description: Workplace jobs per square mile (LEHD LODES WAC over tract land area)
+meta_why: >
+  Job density marks employment centers and the commercial/industrial intensity that drives
+  traffic, energy use, and night-time light.

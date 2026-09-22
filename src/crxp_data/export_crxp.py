@@ -132,6 +132,7 @@ SOURCE_LABELS = {
     "cdc_places": "CDC PLACES (model-based small-area estimates)",
     "raster": "U.S. Geological Survey, National Land Cover Database (NLCD)",
     "viirs": "Earth Observation Group, VIIRS Nighttime Lights (VNL V2)",
+    "lodes": "U.S. Census Bureau, LEHD Origin-Destination Employment Statistics (LODES)",
 }
 
 
@@ -146,6 +147,11 @@ def _about_text(indicator: dict, span: str) -> str:
                 f"land-cover product. Tract values are area-weighted zonal statistics (exact pixel "
                 f"fractions) of the classified raster. As a wall-to-wall classification it carries no "
                 f"sampling margin of error.")
+    if indicator.get("source") == "lodes":
+        return (f"Workplace jobs from the Census Bureau's LEHD Origin-Destination Employment Statistics "
+                f"(LODES8 Workplace Area Characteristics, {span}), summed from 2020 census blocks to "
+                f"tracts. LODES is a synthetic, noise-infused full count rather than a survey sample, "
+                f"so it carries no sampling margin of error.")
     if indicator.get("source") == "cdc_places":
         return (f"Model-based small-area estimates from the CDC PLACES project ({span}), which uses "
                 f"BRFSS survey data and multilevel regression & poststratification to estimate adult "
@@ -165,7 +171,8 @@ def _meta_markdown(indicator: dict, years: list[int]) -> str:
     src = indicator.get("source", "acs")
     label = SOURCE_LABELS.get(src, SOURCE_LABELS["acs"])
     link = {"cdc_places": "https://www.cdc.gov/places/", "raster": "https://www.mrlc.gov/",
-            "viirs": "https://eogdata.mines.edu/products/vnl/"}.get(
+            "viirs": "https://eogdata.mines.edu/products/vnl/",
+            "lodes": "https://lehd.ces.census.gov/data/"}.get(
         src, "https://www.census.gov/programs-surveys/acs")
     return (f"## {indicator['label']}\n{indicator.get('description','')}\n\n"
             f"### Why is this important?\n{indicator.get('meta_why','').strip()} {direction}\n\n"
@@ -215,6 +222,8 @@ def merge_into_app(indicator: dict, value_file: dict, z_doc: dict, lisa_doc: dic
     man["schemaVersion"] = SCHEMA_VERSION
     man["indicators"] = [i for i in man["indicators"] if i["id"] != iid] + [manifest_entry(indicator, years)]
     man["indicators"].sort(key=lambda i: i["id"])
+    # top-level span shown on the data page: every year any indicator publishes
+    man["years"] = sorted({y for i in man["indicators"] for y in i.get("years", [])})
     _atomic_write_text(man_path, json.dumps(man))
 
     agg_path = app_dir / "aggregates.json"

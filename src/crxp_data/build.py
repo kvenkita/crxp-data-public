@@ -106,6 +106,13 @@ def run(slug: str, handoff: bool = False, reexport: bool = False, refetch: bool 
         print("[2/6] Calc (zonal mean radiance; no sampling MOE) ...")
         tidy = calc.add_reliability(raw, region)
         src_meta = {"est_method": "viirs_zonal", "source_id": "viirs", "span": 0, "rolling": False}
+    elif source == "lodes":
+        from .sources import lodes
+        print("[1/6] Ingesting LODES WAC (workplace jobs, block->tract) ...")
+        raw = lodes.fetch_indicator(region, ind)
+        print("[2/6] Calc (job measure; no sampling MOE) ...")
+        tidy = calc.add_reliability(raw, region)
+        src_meta = {"est_method": "lodes_wac", "source_id": "lodes", "span": 0, "rolling": False}
     else:
         raise SystemExit(f"unknown source {source!r}")
 

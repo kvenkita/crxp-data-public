@@ -93,7 +93,7 @@ to a 90%-equivalent MOE ($\times\,1.645/1.96$) so reliability is comparable with
 ## Geographic harmonization (2010 → 2020 tracts) {#sec-harmonize}
 
 ACS 5-year estimates through **2019** use **2010 census tracts**; **2020 onward** use **2020 tracts**.
-In this region 611 (2010) tracts became 752 (2020) tracts; 126 of the 2010 tracts changed. To make
+In this region 611 (2010) tracts became 752 (2020) tracts; 135 of the 2010 tracts were split or redrawn (fewer than 99% of their residents fall in a single 2020 tract). To make
 the time series comparable on a single 2020 geography we build a **population-weighted crosswalk**: each
 2010 tract's value is allocated to 2020 tracts in proportion to the **2020 Census block population**
 that falls in each piece. Concretely, using the Census 2010↔2020 **block** comparability file, each 2020
@@ -125,7 +125,7 @@ tracts.
 **Known limitation — medians.** Medians (income, age) are harmonized as a population-weighted **average of
 the contributing tracts' medians**. This is a pragmatic approximation, not the true pooled median: a mean
 of medians is biased whenever the within-tract distributions differ in shape, and the bias has no
-guaranteed sign. It matters only for the ~126 changed 2010 tracts in pre-2020 years; the unbiased fix is
+guaranteed sign. It matters only for the ~135 changed 2010 tracts in pre-2020 years; the unbiased fix is
 to reconstruct medians from the afact-weighted **binned** ACS distributions (e.g. B19001 income brackets,
 B01001 age brackets) by interpolation, a planned refinement. Readers should treat pre/post-2020 *median*
 trends across changed tracts with corresponding caution.
@@ -241,7 +241,13 @@ We use a **tiered** approach:
 - **Local Moran's I / LISA:** local spatial autocorrelation classified into **High-High, Low-Low,
   High-Low, Low-High,** or **not significant**. Significance is a **conditional-permutation** pseudo
   p-value: tract *i*'s value is held fixed while its hypothetical neighbours are drawn **without
-  replacement** from the *other* tracts' z-scores (999 permutations). Because ~752 tracts are tested at
+  replacement** from the *other* tracts' scores (9,999 permutations). The test runs on **rank-based
+  inverse-normal scores**, $\Phi^{-1}(r_i/(n+1))$, rather than raw values: many indicators are strongly
+  right-skewed, and a few tracts 7–9 SD above the mean widen the permutation null until almost no
+  clustered tract survives correction (poverty rate, 2024: 7 significant tracts on raw values versus 153
+  on rank-normal scores). Quadrants therefore mean high or low *rank* within the region. The permutation
+  count matters too: its p-value floor $1/(P+1)$ must sit well below $\alpha/m$, and at 999 permutations
+  BH could reject nothing unless at least 15 tracts hit the floor. Because ~752 tracts are tested at
   once, the pseudo p-values are then **FDR-controlled (Benjamini–Hochberg, α = 0.05)** before a tract is
   called significant — without this correction, dozens of tracts would light up by chance alone. The app
   consumes these precomputed quadrants; it does not recompute LISA client-side.

@@ -2,27 +2,28 @@
 title: "An Open, Reproducible Platform for Small-Area Community Indicators: The Carolinas Regional Explorer"
 subtitle: "A working paper documenting the architecture, methodology, and replication of a civic data platform for the Charlotte region"
 author:
-  - "Kailas Venkitasubramanian, UNC Charlotte Urban Institute"
+  - name: Kailas Venkitasubramanian
+    affiliation: UNC Charlotte Urban Institute
+  - name: Nick Occhipinti
+    affiliation: UNC Charlotte Urban Institute
+  - name: Fatimah Alnahash
+    affiliation: UNC Charlotte Urban Institute
 date: last-modified
+license: "CC BY"
 abstract: >
-  Local decision-makers, community organizations, and residents increasingly rely on neighborhood-scale
-  data, yet most community-indicator dashboards are proprietary, methodologically opaque, silent about
-  statistical uncertainty, and difficult to reproduce or adapt to other places. We present the Carolinas
-  Regional Explorer (CRXP), an open, reproducible platform for small-area (census-tract) community
-  indicators across the 14-county Charlotte region, comprising (1) an open-source web application and
-  (2) a documented, config-driven data pipeline, joined by a stable, versioned data contract. CRXP treats
-  statistical uncertainty as a first-class concern — propagating American Community Survey margins of
-  error, flagging low-reliability estimates, and significance-testing change only between non-overlapping
-  periods — and makes transparent a series of methodological choices that such platforms usually hide:
-  handling the overlap of ACS 5-year estimates, harmonizing 2010 and 2020 census-tract boundaries by
-  fractional population-weighted interpolation, tiering small-area estimation, computing environment
-  indicators from satellite rasters via exact zonal statistics, detecting spatial clusters with
-  FDR-controlled Local Moran's I, and attributing vernacular neighborhood names to tracts by Voronoi
-  area-weighting over volunteered geographic data. For non-expert audiences it adds plain-language, cited
-  "why it matters" briefs and open per-indicator and bulk data downloads. We document the system so other
-  metropolitan areas can replicate or adapt it with attribution, and we publish this paper as a living,
-  versioned reference intended to invite peer scrutiny and community feedback. This version documents the
-  platform and methodology; substantive findings for the Charlotte region are reserved for a companion paper.
+  Most community-indicator dashboards hide the statistical uncertainty of their small-area estimates and
+  do not publish the code that produces them, so their numbers are hard to audit or reproduce. We present
+  the Carolinas Regional Explorer (CRXP), an open platform for census-tract indicators across the
+  14-county Charlotte region: an open-source web application and a documented, config-driven data
+  pipeline, joined by a versioned data contract. CRXP carries uncertainty through to the user: it
+  propagates American Community Survey margins of error, flags low-reliability estimates, and tests
+  change only between non-overlapping periods. It also documents choices that such platforms usually
+  leave unstated, among them harmonizing 2010 and 2020 tract boundaries by population-weighted
+  interpolation, detecting spatial clusters with FDR-controlled Local Moran's I on rank-normal scores,
+  and attributing vernacular neighborhood names to tracts from OpenStreetMap. Plain-language, cited
+  briefs and open downloads serve non-expert users. We document the system so that other regions can
+  replicate or adapt it with attribution. The paper is versioned; findings for the Charlotte region
+  appear in a companion paper.
 keywords: [community indicators, small-area estimation, American Community Survey, data uncertainty, spatial autocorrelation, areal interpolation, volunteered geographic information, civic technology, reproducibility, urban analytics, open source]
 toc: true
 toc-depth: 3
@@ -48,7 +49,7 @@ format:
 ---
 
 ::: callout-note
-**Working paper — v0.7 (draft).** This is a *living* document, updated as the platform develops; cite the
+**Working paper — v0.8 (draft).** This is a *living* document, updated as the platform develops; cite the
 version and date. The platform's living technical documentation (application, data pipeline, methodology
 guide) is a companion to this paper. Citations and the reference list are managed in BibTeX
 (Chicago author–date). Figures are screenshots of the running application, placed beside the methods
@@ -57,193 +58,210 @@ they illustrate.
 
 # Introduction {#sec-intro}
 
-Communities make consequential decisions — where to site services, how to target investment, whether a
-neighborhood's conditions are improving — on the basis of data measured at small geographic scales. A
+Communities decide where to site services, how to target investment, and whether a neighborhood's
+conditions are improving on the basis of data measured at small geographic scales. A
 generation of "community indicator" and "neighborhood indicator" systems has grown up to meet this need,
 often stewarded by local *data intermediaries* that translate public data into accessible, place-based
-information [@sawicki_flynn1996; @kingsley2014]. The
-Charlotte region's own Quality of Life Explorer is a prominent example of this lineage.
+information [@sawicki_flynn1996; @kingsley2014].
 
-Yet the tools that deliver these data to the public share recurring limitations. Many are built on
-proprietary software stacks that local partners cannot run or extend. Most present point estimates with
+Yet the tools that deliver these data to the public share recurring limitations. Most present point estimates with
 no indication of their statistical uncertainty, even though small-area survey estimates, especially
 from the American Community Survey (ACS), can carry margins of error large enough to reverse apparent
-rankings or trends [@spielman2014; @folch2016]. Their methodological choices
-— how boundaries that change between censuses are reconciled, how rates are aggregated, how "change over
-time" is computed from overlapping survey vintages, how clusters are judged "significant" — are rarely
-documented, making the numbers hard to interpret and impossible to audit. And because the data-processing
+rankings or trends [@spielman2014; @folch2016]. Their methodological choices are rarely documented:
+how boundaries that change between censuses are reconciled, how rates are aggregated, how "change over
+time" is computed from overlapping survey vintages, how clusters are judged "significant." Without that
+documentation, the numbers cannot be audited. And because the data-processing
 code is seldom released, the work is difficult to reproduce or to adapt to another region.
 
-This paper documents the **Carolinas Regional Explorer (CRXP)**, an attempt to address these limitations
-directly. CRXP is an open, reproducible platform for census-tract community indicators across the
-14-county Charlotte region. It has two parts joined by a documented interface: an **open-source web
-application** for exploring indicators as maps, trends, and spatial analyses, and an **open data
-pipeline** that ingests heterogeneous public sources, computes indicators with explicit uncertainty, and
-hands a versioned data product to the application. We designed the platform around four commitments
-(*openness*, *uncertainty-awareness*, *methodological transparency*, and *replicability*) and we wrote
-this paper to make good on the last two: to state plainly the choices we made, ground each in the
-relevant literature, and invite scrutiny.
+This paper documents the Carolinas Regional Explorer (CRXP), which addresses these limitations.
+CRXP is an open, reproducible platform for census-tract community indicators across the 14-county
+Charlotte region. It has two parts joined by a documented interface: an *open-source web application*
+for exploring indicators as maps, trends, and spatial analyses, and an *open data pipeline* that ingests
+heterogeneous public sources, computes indicators with explicit uncertainty, and hands a versioned data
+product to the application. We designed the platform around four commitments (*openness*,
+*uncertainty-awareness*, *methodological transparency*, and *replicability*). This paper serves the last
+two: it states the choices we made and grounds each in the relevant literature, so that others can check
+them.
 
 Our contributions are:
 
 1. **A reference implementation** (application + pipeline + versioned data contract) for open, small-area
    community-indicator platforms, designed so that another metro can adopt it by changing configuration
-   rather than rewriting code (@sec-adoption).
-2. **Uncertainty as a first-class citizen** — end-to-end propagation of ACS margins of error,
-   coefficient-of-variation reliability flags surfaced in the interface, significance-tested change
-   between non-overlapping periods, and **authoritative, MOE-carrying county estimates with correctly
-   pooled regional values** rather than biased tract averages (@sec-moe, @sec-agg).
-3. **Transparent, literature-grounded methodology** for the hard steps — ACS 5-year comparability
-   (@sec-comparability), **fractional population-weighted 2010→2020 tract harmonization** (@sec-harmonize),
-   tiered small-area estimation (@sec-sae), exact raster-to-tract zonal statistics (@sec-raster), and
-   **FDR-controlled** spatial-cluster detection (@sec-spatial).
+   (@sec-adoption).
+2. **Uncertainty carried end to end:** propagation of ACS margins of error, coefficient-of-variation
+   reliability flags surfaced in the interface, significance-tested change between non-overlapping
+   periods, and published county estimates with their own MOE, pooled to the region, in place of tract
+   averages (@sec-moe, @sec-agg).
+3. **Documented, literature-grounded methodology** for the hard steps: ACS 5-year comparability
+   (@sec-comparability), fractional population-weighted 2010→2020 tract harmonization (@sec-harmonize),
+   direct and model-based estimation (@sec-sae), exact raster-to-tract zonal statistics (@sec-raster), and
+   FDR-controlled spatial-cluster detection (@sec-spatial).
 4. **A detailed, reproducible method for attributing vernacular neighborhood names to tracts** from
    volunteered geographic information (@sec-neighborhoods).
-5. **A config-driven, multi-source data engine** spanning survey, model-based, and satellite data, with a
+5. **A config-driven, multi-source data engine** spanning survey, model-based, administrative, and satellite data, with a
    source-sustainability classification (@sec-sources).
-6. **A replication pathway** — adoption recipe, licensing, and attribution model (@sec-adoption).
+6. **A replication pathway:** adoption recipe, licensing, and attribution model (@sec-adoption).
 
-Substantive regional findings are reserved for a companion paper, keeping this contribution a clean
-methods and systems reference.
+Substantive regional findings are reserved for a companion paper, so this one stays a methods and
+systems reference.
 
 # Background and related work {#sec-related}
 
-**Community indicators and data intermediaries.** The practice of compiling place-based social, economic,
-and environmental indicators to inform local action has deep roots in planning and public administration
+**Community indicators and data intermediaries.** Planners and public administrators have compiled
+place-based social, economic, and environmental indicators to guide local action for decades
 [@sawicki_flynn1996]. Since the 1990s, the National Neighborhood Indicators Partnership (NNIP) has
-organized local *data intermediaries* — university institutes, civic nonprofits, and government offices —
-that democratize neighborhood data and build local capacity to use it [@kingsley2014]. These
+organized local *data intermediaries* (university institutes, civic nonprofits, and government offices)
+that make neighborhood data public and build local capacity to use it [@kingsley2014]. These
 organizations confront a common technical problem: turning fragmented public data into trustworthy,
 small-area indicators that non-specialists can explore. The Charlotte-Mecklenburg Quality of Life
-Explorer, a long-running product of this tradition, is the direct motivation for CRXP; CRXP generalizes
-that model from a single county to a multi-county region and re-implements it on an open, reproducible
-foundation.
+Explorer, a long-running product of this tradition, is the direct motivation for CRXP. It is itself open
+source: its application and processed data are MIT-licensed, and its code has been adapted for High
+Point, North Carolina. CRXP extends that model from a single county's neighborhood profile areas to
+census tracts across a multi-county, two-state region, and adds a documented source-to-indicator
+pipeline and user-facing statistical uncertainty.
 
 **Contemporary small-area platforms.** Several widely used tools deliver small-area data to the
-public — among them the City Health Dashboard, the Opportunity Atlas, and the EPA's EJScreen. Each is
-valuable within its domain, but few combine these strengths in one platform, as @tbl-comparison details.
+public, among them the City Health Dashboard, the Opportunity Atlas, and EJScreen. The EPA removed
+EJScreen, its environmental-justice screening tool, from its website in February 2025;
+community-maintained reconstructions keep it available [@edgi_ejscreen2025]. Each tool is useful within
+its domain, but few combine these strengths in one platform, as @tbl-comparison details.
 
 ## How CRXP compares to existing platforms {#sec-comparison}
 
 The table contrasts CRXP with representative small-area platforms on the dimensions most relevant to
-transparency and replication. Entries describe each tool as publicly documented at the time of writing
-and are intended to be descriptive, not to diminish the substantial value these platforms provide.
+transparency and replication. Entries describe each tool as publicly documented on its website and
+repositories as of September 2026 [@qol_explorer; @cityhealthdashboard_tech; @chetty2018atlas]. The
+entries are descriptive, not evaluative.
 
-| Dimension | **CRXP** | Charlotte QoL Explorer | City Health Dashboard | Opportunity Atlas | EPA EJScreen |
+| Dimension | **CRXP** | Charlotte QoL Explorer | City Health Dashboard | Opportunity Atlas | EPA EJScreen (archived) |
 |---|---|---|---|---|---|
-| Publish grain | Census tract | Tract / neighborhood | City & tract | Census tract | Block group / tract |
-| Coverage | 14-county region (adaptable) | Mecklenburg Co. | 750+ U.S. cities | National | National |
-| Open-source **application** | Yes | No | No | No | Tool gov-hosted |
-| Open / reproducible **pipeline** | Yes | No | Partial (methods pub.) | Methods published | Data + methods public |
-| Margins of error shown to users | Yes (band + flag + hatch) | No | Some measures (CIs) | SEs in data, not UI | Percentiles, not MOE |
-| Multi-source (survey + model + satellite) | Yes | Mostly ACS + local | Multi-source (health) | Mobility cohorts | Environmental + ACS |
-| Time series + comparable-period change | Yes (dual 5/10-yr, sig-tested) | Yes | Limited | Static cohorts | Limited |
+| Publish grain | Census tract | Neighborhood profile area (462) | City & tract | Census tract | Block group / tract |
+| Coverage | 14-county, two-state region | Mecklenburg Co. | 970+ U.S. cities | National | National |
+| Open-source **application** | Yes (MIT) | Yes (MIT) | No | No | No; removed from EPA site 2025, community rebuilds |
+| Documented source-to-indicator **pipeline** | Yes (open code) | Processed data public; processing not published | Methods published | Methods published | Data + methods published |
+| Margins of error shown to users | Yes (band + flag + hatch) | No | Yes (tract CIs in tables) | SEs in data; UI warnings | Percentiles, not MOE |
+| Multi-source (survey + model + admin + satellite) | Yes | ACS + local administrative | Multi-source (health) | Linked tax/census records | Environmental + ACS |
+| Time series + comparable-period change | Yes (5/10-yr, sig-tested) | Yes (trends) | Limited | Static cohorts | Limited |
 | Interactive spatial analysis (LISA, bivariate) | Yes (FDR-LISA + correlation scatter) | Limited | Limited | No | Mapping only |
 | Plain-language, cited indicator briefs | Yes (per indicator) | Partial | Partial | Limited | Limited |
-| Open data download (per-indicator + bulk) | Yes (CSV / JSON / zip) | Limited | Limited | Yes | Yes |
-| Portable/replicable to another region | Yes (config-driven) | No | National service | No | National service |
-| Proprietary GIS required | No | Yes (ArcGIS) | n/a | n/a | n/a |
+| Open data download | Yes (CSV / JSON / zip) | Yes (CSV on GitHub) | Yes | Yes | Yes (archived) |
+| Adapted or adaptable to another region | Yes (config-driven) | Yes (forked for High Point, NC) | National service | National service | National service |
+| Proprietary GIS required | No | No | n/a | n/a | n/a |
 
 : Comparison of CRXP with representative small-area data platforms. {#tbl-comparison}
 
-The pattern is that incumbent platforms excel on coverage or a specific domain, but few combine an
-open application and open pipeline, user-facing uncertainty, and regional replicability —
-the niche CRXP occupies.
+Incumbent platforms excel on coverage or in a specific domain, and the local
+precedent already shows that an open application can travel between regions. What none of them combines
+is an open application, an open source-to-indicator pipeline, and user-facing uncertainty. CRXP is built
+to fill that gap.
 
 # Design goals and principles {#sec-design}
 
-Six principles shaped the platform, refining the four commitments introduced in @sec-intro; each responds to a limitation identified there.
+Six design principles put those commitments into practice. Each answers a limitation named in @sec-intro.
 
 1. **Tract as the publish grain, with a regular update cadence.** The census tract is the finest scale at
    which most public indicators are reliably available; every CRXP indicator is published at the tract
-   level and is required to update at least biennially, so the platform stays current.
+   level. The catalog targets at least a biennial update cadence, and the source registry (@sec-sources)
+   flags series that fall behind it; several do today (four NLCD land-cover measures end in 2021, LODES
+   in 2022).
 2. **Open and reproducible.** Both the application and the pipeline are open source and use no proprietary
-   GIS, so partner organizations and students can run, audit, and extend the system. This operationalizes
+   GIS, so partner organizations and students can run, audit, and extend the system. This applies
    the FAIR principles for the data products [@wilkinson2016] and the norms of reproducible
    computational research [@peng2011].
 3. **Uncertainty-first.** Because small-area estimates are uncertain, the platform carries and displays
-   that uncertainty rather than hiding it [@spielman2014; @maceachren2012].
+   that uncertainty [@spielman2014; @maceachren2012].
 4. **Separation of concerns via a versioned data contract.** A data *engine* produces a documented,
-   schema-versioned data product that an *application* consumes. The clean interface makes the application
-   portable and the data reusable by other tools (including a future shared regional backend).
+   schema-versioned data product that an *application* consumes. That interface makes the application
+   portable and the data reusable by other tools.
 5. **Staggered updates and extensibility by configuration.** Sources update on different schedules and
    cover different geographies; the engine treats partial updates as normal and adds indicators through
-   configuration rather than new code.
+   configuration.
 6. **Accessible to non-experts.** Beyond the analyst-facing map, the platform offers plain-language,
    cited briefs and one-click data downloads, so residents and journalists can understand and reuse the
-   data, not just look at it.
+   data.
 
 # System architecture {#sec-architecture}
 
-CRXP is two components joined by a stable interface (@fig-arch). The **data engine** ingests public
+CRXP is two components joined by a stable interface (@fig-arch). The *data engine* ingests public
 sources, harmonizes geography, computes indicators with uncertainty, derives spatial analytics, and
-writes both a curated **warehouse** and the **data contract** the application reads. The **application**
+writes both a curated *warehouse* and the *data contract* the application reads. The *application*
 is a static, prerendered web client that loads the contract and renders interactive maps, trends, and
 analyses entirely in the browser.
 
-![CRXP architecture: an open data pipeline ingests four public sources and produces a versioned data contract consumed by a static web application; it also writes a reusable parquet/DuckDB warehouse.](figures/fig-arch.png){#fig-arch width=95%}
+![CRXP architecture: an open data pipeline ingests public sources and produces a versioned data contract consumed by a static web application; it also writes a reusable parquet/DuckDB warehouse.](figures/fig-arch.png){#fig-arch width=95%}
 
 **Technology choices and rationale.** The application is a static site (prerendered HTML with a vector
-map library) that requires no server or database at run time; this minimizes hosting cost and operational
-burden, scales trivially, and removes a class of security and maintenance concerns, important for civic
-projects with limited budgets. The lone exception is address search, which calls a single stateless
+map library) that requires no server or database at run time. Hosting is cheap, there is no scaling
+work, and there is no server to secure or patch, which matters for civic projects with small budgets.
+The lone exception is address search, which calls a single stateless
 serverless function to proxy a geocoder (keeping the geocoding key server-side); the browser-side "use my
 location" lookup needs no server at all, resolving a coordinate to its tract by point-in-polygon against
-the loaded tract geometry. Geometry carries only identifiers, and indicator values are joined to it
+the loaded tract geometry.
+
+Geometry carries only identifiers, and indicator values are joined to it
 in the browser via the map library's *feature-state*, keeping payloads small and letting the app switch
 indicators and years without reloading maps. The pipeline is written in Python to draw on its
-data-science ecosystem; the warehouse uses columnar **parquet** files plus an embedded analytical
-database (**DuckDB**), giving any downstream tool, including other applications, SQL access to the same
+data-science ecosystem; the warehouse uses columnar parquet files plus an embedded analytical
+database (DuckDB), giving any downstream tool, including other applications, SQL access to the same
 curated data without standing up a server.
 
 # Data pipeline and methodology {#sec-methods}
 
-This section is the methodological core. Each subsection states the choice, gives the formalism with a
+Each subsection follows one pattern: it states the choice, gives the formalism with a
 plain-language explanation, justifies it against the literature, and, where the choice surfaces in the
 interface, illustrates it with the running application. The full indicator catalog, data dictionary, and
 an equation reference are maintained in the companion living documentation (the Methodology Guide and Data Pipeline Technical Documentation).
 
 ## Region and geography {#sec-geo}
 
-The study region is the 14-county Charlotte metropolitan region — 11 counties in North Carolina (Anson,
+The study region is the 14-county Charlotte metropolitan region: 11 counties in North Carolina (Anson,
 Cabarrus, Catawba, Cleveland, Gaston, Iredell, Lincoln, Mecklenburg, Rowan, Stanly, Union) and 3 in South
-Carolina (Chester, Lancaster, York) — comprising about 752 census tracts on 2020 boundaries. The census
+Carolina (Chester, Lancaster, York), comprising 752 census tracts on 2020 boundaries. The census
 tract is the publish grain because it is the finest geography at which the ACS publishes the full table
 set and at which most administrative data can be reliably placed; tracts are designed to be relatively
-homogeneous units of roughly 1,200–8,000 residents, which makes them a defensible proxy for
-"neighborhood-scale" while remaining statistically usable. County values use each source's authoritative
-published county estimate and the region is pooled, rather than averaging tracts (@sec-agg). The
-region is a **configuration value** (a list of county FIPS codes) so the same engine serves any set of
-counties without code changes; this is the foundation of the platform's replicability (@sec-adoption).
+homogeneous units of roughly 1,200–8,000 residents [@census_tracts2018], small enough to stand in for
+neighborhoods and large enough for stable estimates. County values use each source's published
+county estimate, and the region is pooled from counties instead of averaged from tracts (@sec-agg). The
+region is a configuration value (a list of county FIPS codes) so the same engine serves any set of
+counties without code changes; this is what lets the platform move to another region (@sec-adoption).
 
 ## Sources and a sustainability-aware catalog {#sec-sources}
 
-CRXP currently publishes 65 indicators drawn from four public sources and spanning eight of its ten
-themes (Safety and Arts & Culture remain to be populated): the U.S. Census Bureau's **American Community
-Survey (ACS) 5-Year Estimates** (42 indicators — demographic, economic, educational, housing,
+CRXP currently publishes 68 indicators drawn from five public sources and spanning eight of its ten
+themes (Safety and Arts & Culture remain to be populated). The U.S. Census Bureau's American Community
+Survey (ACS) 5-Year Estimates supply 42 indicators: demographic, economic, educational, housing,
 transportation, insurance, and disability measures, plus a residential-stability measure for the
-Engagement theme); **CDC PLACES** (16 model-based adult-health measures, including a recently added set of
-health-related social needs — food and housing insecurity, transportation barriers, social support, and
-loneliness); and the seven Environment measures from USGS **National Land Cover Database (NLCD)** (including **Tree Canopy Cover**) and **EOG VIIRS Nighttime Lights** (light pollution) — bringing the total to 42 + 16 + 7 = 65. One ingester module per
-source sits behind a common interface, so adding a source (or, as the PLACES expansion showed, many
-measures from an existing source) is a localized, configuration-driven change.
+Engagement theme. CDC PLACES supplies 16 model-based adult-health measures, including a recently added
+set of health-related social needs (food and housing insecurity, transportation barriers, social support,
+and loneliness). The Census Bureau's LEHD Origin-Destination Employment Statistics (LODES) supply 3
+Economy measures from the Workplace Area Characteristics file: total jobs, job density, and a
+jobs–housing balance of workplace jobs per ACS household [@census_lodes]. The remaining seven are
+Environment measures from the USGS National Land Cover Database (NLCD), including Tree Canopy Cover, and
+EOG VIIRS Nighttime Lights (light pollution), for a total of 42 + 16 + 3 + 7 = 68.
 
-A recurring failure mode for indicator systems that aggregate many feeds is *silent staleness* — a series
+LODES reports jobs on 2020 census blocks, which nest exactly within 2020 tracts, so tract values are
+simple sums with no crosswalk. Because LODES is a synthetic, noise-infused full count rather than a
+sample, it carries no sampling MOE and, like the raster measures, is shown without an error band. The
+jobs–housing ratio's denominator, ACS households, does carry an MOE; the platform does not yet propagate
+it. One ingester module per
+source sits behind a common interface, so adding a source (as LODES showed) or many measures from an
+existing source (as the PLACES expansion showed) is a localized, configuration-driven change.
+
+A recurring failure mode for indicator systems that aggregate many feeds is *silent staleness*: a series
 that quietly stops updating while still appearing current. We mitigate this with a machine-readable
-**source registry** that records each source's provider, native geography, vintages, license, and update
-cadence, together with a **sustainability classification**: *active* (refreshed on a known cadence),
+*source registry* that records each source's provider, native geography, vintages, license, and update
+cadence, together with a *sustainability classification*: *active* (refreshed on a known cadence),
 *event-driven* (periodic, opportunistic), or *static / decommission-watch* (no longer updated). This
-classification drives the prominent per-indicator vintage shown in the interface, so a user always sees
-how current a number is.
+classification drives the per-indicator vintage label, so users can see how current each number is.
 
 ## A configuration-driven indicator model {#sec-model}
 
 Each indicator is declared in a small configuration file specifying its source, the variables it draws
-on, its *kind*, and presentation metadata. Supported kinds cover the common cases — `count`, `median`,
-`proportion`, `rate`, and `density` — and numerators and denominators may be sums of several
+on, its *kind*, and presentation metadata. Supported kinds cover the common cases (`count`, `median`,
+`proportion`, `rate`, and `density`), and numerators and denominators may be sums of several
 variables. This matters because many community measures are *derived*: cost burden is the sum of several
 income-share categories; a race/ethnicity grouping sums several base counts; child poverty has a
-multi-line denominator. Expressing these in configuration rather than code keeps the engine small,
+multi-line denominator. Expressing these in configuration keeps the engine small,
 auditable, and analyst-editable, and it makes the precise definition of every indicator inspectable
 without reading source code. Variable identifiers are the official ACS codes (e.g. `B19013_001E` for an
 estimate and `B19013_001M` for its margin), and ACS subject tables are routed automatically to the
@@ -254,29 +272,28 @@ appropriate API endpoint.
 ACS estimates are sample-based and published with a 90% margin of error (MOE). Treating these point
 estimates as exact is a well-documented hazard at the tract level, where MOEs are frequently large
 relative to the estimate and can reverse apparent rankings or trends [@spielman2014; @folch2016]. CRXP therefore carries the MOE through every derived quantity and converts it to interpretable
-reliability information surfaced directly in the interface (@fig-uncertainty).
+reliability information shown in the interface (@fig-uncertainty).
 
 We first convert the MOE to a standard error and a coefficient of variation:
 $$ SE = \frac{MOE}{1.645}, \qquad CV = \frac{SE}{|\hat{x}|}\times 100\%, $$
 where $\hat{x}$ is the estimate (the 1.645 factor is the 90% normal quantile the Census uses). *In plain
 terms,* the standard error is the typical sampling "wobble" in the estimate, and the CV expresses that
-wobble as a percentage of the estimate — a unit-free way to say how trustworthy a number is. We flag
-estimates as **ok** ($CV \le 15\%$), **caution** ($15\% < CV \le 30\%$), or **unreliable** ($CV > 30\%$),
+wobble as a percentage of the estimate, a unit-free measure of reliability. We flag
+estimates as *ok* ($CV \le 15\%$), *caution* ($15\% < CV \le 30\%$), or *unreliable* ($CV > 30\%$),
 following long-standing Census practice and the National Research Council's guidance on using the ACS
 [@citro_kalton2007; @census2020acs]. A known limitation is that the CV is unstable for
-near-zero estimates, where a tiny absolute MOE can produce a huge CV; we note this rather than suppress it.
+near-zero estimates, where a tiny absolute MOE can produce a huge CV; we report such values unsuppressed.
 
 For derived measures we propagate the MOE using the Census Bureau's published formulas. For an
-**aggregate** (a sum of estimates), MOEs combine in quadrature:
+*aggregate* (a sum of estimates), MOEs combine in quadrature:
 $$ MOE_{\text{sum}} = \sqrt{\textstyle\sum_i MOE_i^2}. $$
-For a **proportion** $p = \hat{n}/\hat{d}$ whose numerator is a subset of the denominator,
+For a *proportion* $p = \hat{n}/\hat{d}$ whose numerator is a subset of the denominator,
 $$ MOE_p = \frac{1}{\hat{d}}\sqrt{MOE_n^2 - p^2\,MOE_d^2}, $$
 falling back to the ratio formula below when the radicand is negative (the documented Census behavior).
-For a **ratio** $R = \hat{n}/\hat{d}$ whose numerator is *not* a subset of the denominator,
+For a *ratio* $R = \hat{n}/\hat{d}$ whose numerator is *not* a subset of the denominator,
 $$ MOE_R = \frac{1}{\hat{d}}\sqrt{MOE_n^2 + R^2\,MOE_d^2}. $$
-*In plain terms,* when we combine estimates the uncertainties add up, but not linearly — independent
-errors partly cancel, which is why they combine through squares and square roots rather than simple
-addition. These propagation rules are implemented as pure functions and unit-tested against the worked
+*In plain terms,* when we combine estimates the uncertainties add up, but not linearly: independent
+errors partly cancel, which is why they combine through squares and square roots. These propagation rules are implemented as pure functions and unit-tested against the worked
 examples in the Census handbook.
 
 Finally, to compare two estimates we use the Census difference test: the difference is statistically
@@ -295,15 +312,16 @@ are different kinds of uncertainty.
 
 ### Temporal comparability of model-based estimates
 
-Uncertainty discipline also governs *whether a temporal claim may be made at all*, and here the sources
-diverge sharply. The PLACES health measures are assembled into a multi-year series by stitching six
+Uncertainty also limits which trends a platform may show, and here the sources diverge sharply. The
+PLACES health measures are assembled into a multi-year series by stitching six
 releases (newest-release-wins, with pre-2024 rows harmonized onto 2020 tracts), but that series is
 presented strictly as levels per year, never as change. CDC is explicit that "the current modeling
-procedure does not support using the estimates to track changes at the local level over time" [@cdcplaces_faq]: sub-county estimates poststratify to a fixed population structure, time is not
-a model variable even at county level, and apparent movement is routinely an artifact of questionnaire
-changes (CDC flags colorectal-screening prevalence specifically) or pandemic-era 2020 BRFSS collection.
-The platform therefore treats temporal comparability as a **source-level property carried in the data
-contract**: a `crossReleaseTrend` flag marks every PLACES indicator, and each interface that would
+procedure does not support using the estimates to track changes at the local level over time"
+[@cdcplaces_faq]. Sub-county estimates poststratify to a fixed population structure, and time is not a
+model variable even at county level. Apparent movement is often an artifact of questionnaire changes (CDC
+flags colorectal-screening prevalence specifically) or of pandemic-era 2020 BRFSS collection.
+The platform therefore treats temporal comparability as a source-level property carried in the data
+contract: a `crossReleaseTrend` flag marks every PLACES indicator, and each interface that would
 otherwise assert change (the significance-tested change markers, the printable report's *change* column,
 and the county-profile deltas) is suppressed for those indicators, while the level series and its
 uncertainty band remain. This is the same uncertainty-first principle applied one level up: a
@@ -313,24 +331,24 @@ the next section addresses.
 
 ## ACS comparability over time {#sec-comparability}
 
-ACS 5-year estimates **overlap**: the 2020–2024 and 2019–2023 estimates share four years of sample, so
-adjacent vintages are not statistically independent and their difference is not a clean measure of change
+ACS 5-year estimates *overlap*: the 2020–2024 and 2019–2023 estimates share four years of sample, so
+adjacent vintages are not statistically independent and their difference is not a valid measure of change
 [@citro_kalton2007; @census2020acs]. CRXP therefore treats the annual series as a
-rolling 5-year estimate and computes change and significance only between **non-overlapping** periods.
+rolling 5-year estimate and computes change and significance only between non-overlapping periods.
 For a selected tract the application reports two changes: a 5-year (latest minus five) and a
 10-year (latest minus ten), each evaluated with the difference test in @sec-moe. These endpoints are
 derived from the latest available year, so they advance automatically as new data is released (adding a
 2025 vintage shifts the comparisons to 2020→2025 and 2015→2025 with no code change). The trend chart's
 x-axis is drawn proportional to the actual year, so uneven cadence (biennial NLCD releases, periodic VIIRS)
-and gaps render truthfully rather than being evenly spaced.
+and gaps appear at their true spacing.
 
 ## Harmonizing 2010 and 2020 tract boundaries {#sec-harmonize}
 
 Census tract boundaries are redrawn each decade; ACS vintages through 2019 use 2010 tracts, and 2020
-onward use 2020 tracts. In this region, 611 tracts (2010) became 752 (2020), with 126 of the old tracts
-changed. Comparing a 2017 value to a 2024 value therefore means comparing two different geographies. To
-place the series on a single 2020 geography we **harmonize** the earlier years by areal interpolation
-[@goodchild_lam1980], and we choose a **population weight** rather than a land-area weight.
+onward use 2020 tracts. In this region, the 611 tracts of 2010 became 752 tracts in 2020, and 135 of the
+2010 tracts were split or redrawn (fewer than 99% of their residents fall in a single 2020 tract). Comparing a 2017 value to a 2024 value therefore means comparing two different geographies. To
+place the series on a single 2020 geography we *harmonize* the earlier years by areal interpolation
+[@goodchild_lam1980], weighting by population rather than land area.
 
 Using the Census 2010↔2020 *block* relationship files, each 2020 block's population is apportioned
 across the 2010 tracts it overlaps in proportion to the overlap land area (a dasymetric refinement that
@@ -345,66 +363,69 @@ indices are population-weighted averages of the contributing tracts' values.
 ![Population-weighted allocation: a changed 2010 tract's value is split across the 2020 tracts that absorb its population (allocation factors sum to 1 per 2010 tract).](figures/fig-harmonize.png){#fig-harmonize width=70%}
 
 *Why population, not area.* Area weighting assumes people are spread uniformly within a tract, which badly
-misallocates tracts that split into pieces of widely different density. In our region, a small-but-dense
+misallocates tracts that split into pieces of widely different density. In this region, a small-but-dense
 2020 tract that holds roughly a fifth of an old tract's population receives only ~0.4% of it under area
-weighting but its true ~21% under population weighting. Population-based interpolation is the standard for
-count-type variables and underlies established tract-harmonization products [@logan2014; @manson2023]; dasymetric refinements that redistribute
-population using ancillary data are well established in the areal-interpolation literature [@mennis2003; @eicher_brewer2001]. This harmonization raised the coverage of valid comparable-period change from
-roughly 480 to about 749 of 752 tracts. A residual caveat is that medians are approximated as
-population-weighted averages of tract medians, which is exact only when within-tract distributions are
+weighting but its true ~21% under population weighting.^[2010 tract 37007920300 in Anson County: its
+2020 successor tract 37007980000 covers 0.45% of the old tract's land area but holds 20.9% of its
+population.] Population-based interpolation is the standard for
+count-type variables and underlies established tract-harmonization products [@logan2014; @manson2023];
+dasymetric refinements with ancillary data extend it [@mennis2003; @eicher_brewer2001]. This harmonization raised the coverage of valid comparable-period change from
+roughly 480 to about 749 of 752 tracts. Medians remain approximate: they are population-weighted
+averages of tract medians, which is exact only when within-tract distributions are
 similar; the unbiased fix (reconstructing medians from afact-weighted binned distributions) is planned.
 
 ## County and regional estimates {#sec-agg}
 
 A county or regional value is a different estimand from a tract value, and averaging tract values to obtain
-it is biased — and, for medians and indices, statistically invalid. The unweighted mean of tract rates
+it is biased; for medians and indices it is statistically invalid. The unweighted mean of tract rates
 over-weights small tracts [the *ecological* and *modifiable areal unit* problems; @robinson1950; @openshaw1984]; a county's median income or Gini coefficient cannot be recovered by averaging its tracts' medians at
-all. CRXP therefore does not aggregate tracts for county metrics. Instead it uses the authoritative
-county-level estimate published by each source, and pools the region explicitly.
+all. CRXP therefore does not aggregate tracts for county metrics. Instead it uses the county-level
+estimate published by each source, and pools the region explicitly.
 
 **County.** Because county boundaries are stable across the 2010 and 2020 censuses (no harmonization
 needed), the engine fetches each county's published estimate directly (ACS county tables carrying their
 own, smaller county margin of error; the CDC PLACES county model; or county zonal statistics for the
-satellite measures) and runs them through the *same* indicator calculator used for tracts. This yields the
-correct value and a proper county MOE for every kind, including the medians and indices that aggregation
-gets wrong.
+satellite measures) and runs them through the *same* indicator calculator used for tracts. Each county
+thus gets its published value and MOE for every kind, including the medians and indices that averaging
+tracts would get wrong.
 
-**Region.** The 14-county region has no single published estimate, so it is **pooled by indicator kind**:
+**Region.** The 14-county region has no single published estimate, so it is pooled by indicator kind:
 counts are summed; rates use the pooled numerator over the pooled denominator,
 $$ p_{\text{region}} = \frac{\sum_c \text{num}_c}{\sum_c \text{den}_c}, $$
 (the exact pooled rate, with its Census proportion/ratio MOE on the summed components); and medians and
-indices use a population-weighted mean of the county values — a documented approximation, since an exact
+indices use a population-weighted mean of the county values. That is an approximation: an exact
 regional median would require microdata. County and regional series, with propagated MOE
 (`countyMoe`/`regionMoe`), are precomputed into a `county_indicators` table and exported in the contract,
-so the interface labels these lines plainly as **County** and **Region**. (The one place a simple
+so the interface labels these lines plainly as *County* and *Region*. (The one place a simple
 unweighted mean remains is the *ad-hoc average of a user-selected set of tracts* in a custom report, which
-is a selection summary rather than a published geography.)
+is a selection summary, not a published geography.)
 
-## Tiered small-area estimation {#sec-sae}
+## Direct and model-based estimates {#sec-sae}
 
-Most CRXP indicators are **direct** estimates published by the ACS at the tract level — the simplest and
-most defensible tier. Where a measure is modeled rather than directly tabulated, we use **model-based
-small-area estimates**: the CDC PLACES health measures are produced by multilevel regression and
+Most CRXP indicators are *direct* estimates published by the ACS at the tract level, the simplest and
+most defensible kind. Where a measure is modeled rather than tabulated, we use *model-based
+small-area estimates*: the CDC PLACES health measures are produced by multilevel regression and
 poststratification (MRP) on survey data, a now-standard approach for small-area prevalence [@gelman_little1997; @cdcplaces_methodology]. For cross-tabulations the ACS does not publish at tract level, a
 planned tier will fit small-area models to public-use microdata with design-based standard errors in the
 Fay–Herriot tradition [@fay_herriot1979; @rao_molina2015]. Every indicator records its estimation
-method in the warehouse and metadata, so users and reviewers can always see *how* a number was produced
+method in the warehouse and metadata, so users and reviewers can see *how* each number was produced
 and treat direct, model-based, and (eventually) survey-modeled estimates with appropriate care.
 
 ## Raster-to-tract zonal statistics {#sec-raster}
 
-Environment indicators are derived from 30-meter satellite rasters via **area-weighted zonal statistics**
+Environment indicators are derived from 30-meter satellite rasters via area-weighted zonal statistics
 computed with the *exact fraction* of each pixel falling inside a tract, rather than the cruder
-pixel-centroid rule — the `exactextract` method, which materially improves accuracy for the irregular,
-mid-sized polygons that tracts are. Land-cover *shares* (forest, cropland, wetlands, developed land) are
+pixel-centroid rule. This is the `exactextract` method [@baston_exactextract]. The centroid rule
+misassigns partial pixels along tract edges, and irregular, mid-sized polygons like tracts have many edge
+pixels. Land-cover *shares* (forest, cropland, wetlands, developed land) are
 the coverage-weighted fraction of a tract's non-nodata area in the relevant NLCD classes; *continuous*
 measures (impervious surface, tree-canopy cover, nighttime-light radiance) are coverage-weighted means
 [NLCD: @homer2020; VIIRS: @elvidge2021]. The Annual NLCD product supplies land cover for most
-years from 2001 onward, so these indicators carry a multi-year series rather than only decadal snapshots.
+years from 2001 onward, so these indicators carry a multi-year series, not only decadal snapshots.
 
-Because these are wall-to-wall measurements rather than samples, they carry *classification accuracy*
-rather than a sampling MOE, and the application shows no error band or reliability flag for them — an
-honest distinction, since the uncertainty is of a different kind. Two caveats apply and are documented:
+Because these are wall-to-wall measurements, not samples, they carry *classification accuracy*
+instead of a sampling MOE, and the application shows no error band or reliability flag for them, because
+the uncertainty is of a different kind. Two caveats apply and are documented:
 satellite land-cover products have published per-class accuracy that varies by class, and any tract-level
 zonal statistic inherits the arbitrariness of the tract boundary itself [the modifiable areal unit problem; @openshaw1984].
 
@@ -415,40 +436,62 @@ For each indicator and year the engine computes three things consumed by the int
 **Standardization.** Per indicator-year, values are converted to z-scores (mean 0, sd 1 across tracts),
 which the bivariate scatter and cluster analysis build on.
 
-**Classification.** The choropleth uses **quantile** class breaks computed once over the pooled
+**Classification.** The choropleth uses quantile class breaks computed once over the pooled
 multi-year distribution and held constant across years, so a given color means the same value range in
-every year and the eye can read change over time honestly. Choosing and fixing a classification is a
+every year and change over time can be read off the map. Choosing and fixing a classification is a
 consequential cartographic decision [@slocum2009; @brewer2016]; fixing it across time is what
-makes the animated year slider trustworthy rather than misleading.
+keeps the animated year slider from misleading.
 
-**Clusters and outliers.** Spatial structure is the rule, not the exception, in neighborhood data —
-"everything is related to everything else, but near things are more related" [@tobler1970]. We detect it
-with **Local Indicators of Spatial Association** [Local Moran's I; @anselin1995], which classify each
-tract as part of a High–High or Low–Low **cluster**, a High–Low or Low–High **spatial outlier**, or *not
-significant* (@fig-lisa). Significance is a **conditional-permutation** pseudo p-value: tract *i*'s value
-is held fixed while its hypothetical neighbours are drawn **without replacement** from the *other* tracts'
-z-scores (999 permutations) — the correct reference distribution for the conditional test, and a
-correction over a naïve with-replacement draw. Because ~752 tracts are tested simultaneously, the
-pseudo p-values are then **Benjamini–Hochberg false-discovery-rate controlled** [@benjamini_hochberg1995] before a tract is called significant; without this correction, dozens of tracts would light up by
-chance alone. Spatial weights are k-nearest-neighbour (k = 8), row-standardized, built from each tract's
-**representative point** — a point guaranteed to lie inside the polygon, unlike a bounding-box midpoint,
-which for L-shaped or coastal tracts can fall outside and distort the neighbour graph. LISA and z-scores
+**Clusters and outliers.** Neighborhood data are spatially structured: "everything is related to
+everything else, but near things are more related" [@tobler1970]. We detect that structure with Local
+Indicators of Spatial Association [Local Moran's I; @anselin1995], which classify each tract as part of a
+High–High or Low–Low *cluster*, a High–Low or Low–High *spatial outlier*, or *not significant*
+(@fig-lisa). Significance is a conditional-permutation pseudo p-value: tract *i*'s value is held fixed
+while its hypothetical neighbors are drawn *without replacement* from the *other* tracts' scores (9,999
+permutations). This is the correct reference distribution for the conditional test, and a correction
+over a naïve with-replacement draw. Because 752 tracts are tested simultaneously, the pseudo p-values are
+then Benjamini–Hochberg false-discovery-rate controlled [@benjamini_hochberg1995] before a tract is called significant; without this correction, dozens of tracts would light up by
+chance alone.
+
+Two further choices make the corrected test usable in practice. First, the test runs on *rank-based
+inverse-normal scores*, $\Phi^{-1}\!\big(r_i/(n+1)\big)$ for a tract of rank $r_i$ among $n$, rather than
+on raw values [@beasley2009]. Many community indicators are strongly right-skewed: a few tracts sit seven
+to nine standard deviations above the regional mean, and because every permutation can draw them, they
+widen the null distribution until ordinary clusters cannot beat it. For poverty rate in 2024, which has a
+clear global spatial autocorrelation (Moran's $I \approx 0.31$), 229 tracts have an unadjusted
+$p < 0.05$ but only 7 remain significant after FDR correction on raw values; on rank-normal scores, 153 do. *In plain
+terms,* the test asks whether a tract and its neighbors rank unusually high (or low) *together* in the
+region, so a handful of extreme tracts cannot mask real clusters; High and Low therefore refer to rank
+position.
+
+Second, the permutation count sets the smallest attainable p-value, $1/(P+1)$. The BH procedure
+over $m$ tests rejects nothing until some p-value falls below $\alpha/m$, which is about $6.6\times10^{-5}$
+here; with $P = 999$ (floor 0.001) at least 15 tracts had to share the floor before any was called
+significant, and several strongly clustered indicators showed no clusters at all. With $P = 9{,}999$ the
+floor is $10^{-4}$, and two tracts at the floor suffice. The rank transform has a cost: a High–High
+cluster says that a group of tracts ranks high together, not that their values are far above the
+regional mean, so in an indicator with a narrow range a significant cluster can be substantively small.
+Results are also not comparable with a raw-value LISA run in standard packages.
+
+Spatial weights are k-nearest-neighbor (k = 8), row-standardized, built from each tract's
+*representative point* (a point guaranteed to lie inside the polygon). A bounding-box midpoint, by
+contrast, can fall outside an L-shaped or coastal tract and distort the neighbor graph. LISA and z-scores
 are computed once in the pipeline (the single statistical source of truth) and consumed by the app as
 precomputed values.
 
-![Spatial clusters (LISA): High–High and Low–Low clusters and High–Low / Low–High spatial outliers for the selected indicator, after FDR correction.](figures/fig-lisa.png){#fig-lisa width=95%}
+![Spatial clusters (LISA) for bachelor's-degree attainment, 2024: High–High and Low–Low clusters and High–Low / Low–High spatial outliers, after FDR correction.](figures/fig-lisa.png){#fig-lisa width=95%}
 
 ## Bivariate analysis {#sec-bivariate}
 
 To examine how two conditions co-occur, such as poverty and educational attainment, the application
-crosses two indicators on a **3×3 bivariate choropleth**: each indicator is split into rank **terciles**
+crosses two indicators on a 3×3 bivariate choropleth: each indicator is split into rank terciles
 and the nine combinations are given a two-dimensional color scheme, a technique with a long cartographic
 pedigree [@olson1981; @brewer2016]. Hovering a grid cell highlights the matching tracts.
 
-Beside the map, a **correlation scatter** plots the two indicators' standardized values, one dot per
+Beside the map, a correlation scatter plots the two indicators' standardized values, one dot per
 tract colored by its bivariate class, with marginal distributions, a least-squares regression line, and
 both Pearson and Spearman correlations (@fig-scatter). Spearman (rank) is shown alongside Pearson
-because most indicators are skewed and the choropleth already colors by rank. Critically, both are
+because most indicators are skewed and the choropleth already colors by rank. Both are
 presented as descriptive only: tract observations are spatially autocorrelated, so the *effective*
 sample size is far below the tract count and a naïve significance test would be badly anti-conservative
 [@clifford1989]. The scatter therefore reports no p-value, and two-way hover links
@@ -458,10 +501,10 @@ each dot to its tract on the map and names the neighborhood (@sec-neighborhoods)
 
 ## Attributing vernacular neighborhood names to tracts {#sec-neighborhoods}
 
-Residents think in *neighborhoods*, not tract numbers, but neighborhoods are **vernacular regions** with
-no authoritative boundaries — their extents are fuzzy, overlapping, and contested [@montello2003].
+Residents think in *neighborhoods*, not tract numbers, but neighborhoods are *vernacular regions* with
+no official boundaries; their extents are fuzzy, overlapping, and contested [@montello2003].
 To help users orient themselves, CRXP attaches one or more approximate neighborhood names to each tract,
-clearly labeled as for-orientation-only. The method is fully reproducible and proceeds in four steps.
+labeled as for orientation only. The method has four steps, each reproducible.
 
 **1. Acquire named points (volunteered geographic information).** We query the OpenStreetMap (OSM)
 Overpass API for `place = neighbourhood | suburb | quarter` point features within the region's
@@ -474,66 +517,68 @@ Results are cached so builds are deterministic and offline-repeatable.
 so the same name in two counties is kept distinct. This yields the committed `neighborhoods.json`.
 
 **3. Attribute tracts by Voronoi area-weighting.** Each tract is assigned a *share* of each nearby
-neighborhood by approximating its overlap with the **Voronoi (Thiessen) tessellation** of the
-neighborhood points [@okabe2000] — i.e. the partition of space into "the area closest to each
+neighborhood by approximating its overlap with the Voronoi (Thiessen) tessellation of the
+neighborhood points [@okabe2000], the partition of space into "the area closest to each
 named point." Concretely, we lay a deterministic grid over the tract's bounding box, keep the interior
 sample points (point-in-polygon), and assign each sample to its nearest neighborhood point; the fraction
-of a tract's interior samples nearest to a given neighborhood is that neighborhood's **area share** of
-the tract. This area-weighting yields, for each tract, a ranked list of neighborhoods with shares —
-capturing that a tract often spans more than one named area.
+of a tract's interior samples nearest to a given neighborhood is that neighborhood's *area share* of
+the tract. The result is a ranked list of neighborhoods with shares for each tract, since a tract often
+spans more than one named area.
 
 **4. Threshold, rank, and fall back.** We keep neighborhoods whose share is at least 15%, up to three per
 tract, ranked by share. To avoid attaching a far-away name to a tract in a sparsely-mapped rural area, we
 compute the great-circle (haversine) distance from the tract's centroid to its nearest neighborhood point
-and apply an **8 km distance cap**: beyond it, or when no neighborhood clears the share threshold, the
+and apply an 8 km distance cap: beyond it, or when no neighborhood clears the share threshold, the
 tract falls back to its city/place name (point-in-polygon against municipal boundaries) and then its
 county. The display label is "*Name* area" for a single neighborhood or "*A / B*" for several. About
-half of the region's tracts receive a neighborhood label; the rest fall back to city or county. The
+four in five tracts (599 of 752) receive a neighborhood label; the rest fall back to a city or town (30)
+or their county (123). The
 parameters (grid resolution, 15% share floor, three-name cap, 8 km cap) are configuration values, and the
 whole step is pure and unit-tested.
 
-We emphasize to users, and re-emphasize here, that these names are approximate and for orientation
-only; they are not official boundaries, and OSM coverage varies. The attribution is dasymetric in
-spirit [@mennis2003]: it distributes a fuzzy, point-based signal over areal units using a transparent,
-distance-based rule rather than asserting precise borders.
+These names are approximate and for orientation only, and the interface says so; they are not
+official boundaries, and OSM coverage varies. The attribution is dasymetric in spirit [@mennis2003]: it
+distributes a fuzzy, point-based signal over areal units using an explicit distance-based rule, without
+asserting precise borders.
 
 ## Warehouse and the versioned data contract {#sec-warehouse}
 
 Computed indicators are stored in a long-format `tract_indicators` table (geoid, indicator, year, value,
 MOE, CV, reliability, period window, rolling flag, estimation method, source vintage) as one parquet
-file per indicator plus a DuckDB database — a portable analytical backend any tool can query with SQL.
+file per indicator plus a DuckDB database that any tool can query with SQL.
 The parquet files are committed to the repository so the contract can be rebuilt on a fresh clone without
 re-fetching from upstream APIs.
 
-On *handoff*, the engine emits the application **data contract** and merges it into the app: an indicator
-**manifest** (carrying a `schemaVersion`), per-indicator value files (with MOE/CV/reliability), precomputed
-spatial analytics (z and FDR-LISA), county/region **aggregates** (with propagated MOE), per-indicator
-metadata, and a **`provenance.json`** recording the library and GDAL/PROJ versions that produced the data.
-Manifest and aggregate updates are written **atomically** (temp file + rename) so an interrupted handoff
+On *handoff*, the engine emits the application data contract and merges it into the app: an indicator
+manifest (carrying a `schemaVersion`), per-indicator value files (with MOE/CV/reliability), precomputed
+spatial analytics (z and FDR-LISA), county/region aggregates (with propagated MOE), per-indicator
+metadata, and a `provenance.json` recording the library and GDAL/PROJ versions that produced the data.
+Manifest and aggregate updates are written atomically (temp file + rename) so an interrupted handoff
 cannot leave a half-written contract. The contract is the only coupling between engine and application,
 and its `schemaVersion` lets the app refuse data it does not understand.
 
 ## Quality assurance and testing {#sec-qa}
 
 Quality control is layered. Ingestion is defensive: ACS requests retry with backoff, and a *partial*
-failure (some counties returned, others did not) raises rather than silently publishing a truncated
-year that would corrupt the series — only a genuinely absent vintage (all counties failing identically)
-is skipped. A build-time **QA gate** fails the build if a year's geographic coverage collapses, its
+failure (some counties returned, others did not) raises an error instead of silently publishing a
+truncated year that would corrupt the series. Only a vintage that is absent for every county is
+skipped. A build-time QA gate fails the build if a year's geographic coverage collapses, its
 null rate is excessive, or finite values fall outside a configured plausible range. The statistical core
 (MOE propagation, the difference test, the harmonization allocation, representative-point centroids, and
 the FDR procedure, verified to control false discoveries on spatially random data) is unit-tested
-against worked examples. Finally, the application's **contract validator** checks the handed-off files
+against worked examples. Finally, the application's contract validator checks the handed-off files
 before every build: supported `schemaVersion`, value-years aligned to the manifest, numeric sanity (no
 NaN), analytics content (LISA quadrants in range, years aligned), aggregate completeness, and geoid
-reconciliation. Reliability flags and the source-sustainability classification provide ongoing, visible
-guards against misleading values.
+reconciliation.
 
 # The application {#sec-app}
 
-The application turns the data contract into an explorable interface for several audiences at once — an
-analyst's map, a resident's plain-language explainer, and an open-data portal.
+The application turns the data contract into an explorable interface for several audiences at once: an
+analyst's map, a resident's plain-language explainer, and an open-data portal. The public site embeds the
+explorer inside a wider regional site (the map figures show that site's navigation), while profile,
+report, and data pages are served directly by the application.
 
-**Explorer.** The headline view is a **choropleth explorer** (@fig-explorer): an indicator mapped at
+**Explorer.** The headline view is a choropleth explorer (@fig-explorer): an indicator mapped at
 tract or county level with the cross-year-consistent class breaks of @sec-spatial, an interactive legend
 that filters the map by class, a year slider, and the uncertainty and comparable-period machinery of
 @sec-moe surfaced on selection. Indicators are organized by theme, alphabetical within each theme, and
@@ -542,27 +587,27 @@ indicator dropdowns are grouped into theme-colored sections so a long list is ea
 
 ![The choropleth explorer: median household income by census tract, with the theme-colored class legend, geography toggle, analysis-mode bar, and year slider. Bivariate and spatial-cluster modes share this canvas.](figures/fig-explorer.png){#fig-explorer width=95%}
 
-**Plain-language, cited briefs.** Every indicator has a researched *"why this matters"* brief written for
+**Plain-language, cited briefs.** Every indicator has a *"why this matters"* brief written for
 residents and journalists, with a short list of verified "Learn more" resources and an "About the
 data" provenance note. The explore sidebar shows a brief lead with a link to the full indicator page.
-This directly serves the accessibility principle (@sec-design): the platform explains its indicators, not
-just displays them.
+This serves the accessibility principle (@sec-design): the platform explains what each indicator
+measures and why it matters.
 
-**Profiles.** Each county has a profile page (@fig-county) with a real-polygon **inset/locator map**, a
-smooth **14-county switcher**, metric cards, social sharing, and a standard attribution footer; the
-locator doubles as a switcher (each county is a link). The same machinery underlies city profiles.
+**Profiles.** Each county has a profile page (@fig-county) with a real-polygon inset/locator map, a
+14-county switcher, metric cards, social sharing, and a standard attribution footer; the
+locator doubles as a switcher (each county is a link).
 
 ![A county profile: a real-polygon locator/inset map (the active county highlighted, every county a link), a 14-county switcher, and metric cards. Profiles and reports carry a standard attribution footer.](figures/fig-county.png){#fig-county width=95%}
 
 **Reports and downloads.** A custom multi-tract report is printable and shareable on social media
 (the selection is encoded in the URL), with the attribution footer for any printed or shared artifact. An
 open-data page (@fig-data) exposes a per-dimension data dictionary with CSV and JSON downloads per
-indicator and a one-click **"Download all"** archive; these artifacts are prebuilt at every build so they
-always match the live data.
+indicator and a one-click "Download all" archive; these files are rebuilt with every deploy, so they
+match the live data.
 
 ![The data-downloads page: collapsible dimensions reveal a per-indicator data dictionary with CSV and JSON downloads; a single archive bundles the complete dataset.](figures/fig-data.png){#fig-data width=95%}
 
-Throughout, **provenance badges** (source vintage; *model-based* for CDC PLACES; *pre-2020 harmonized* for
+Throughout, provenance badges (source vintage; *model-based* for CDC PLACES; *pre-2020 harmonized* for
 ACS) keep the lineage of each number visible (@fig-uncertainty).
 
 # Reproducibility and adoption {#sec-adoption}
@@ -576,7 +621,7 @@ The high-level recipe:
    CRS, and the ACS years. Comparable-period endpoints are derived automatically from the latest year.
 2. **Install the engine.** Create a Python environment and install the pipeline's pinned dependencies.
 3. **Provide source access where needed.** Most sources are public and fetched automatically (ACS via the
-   Census API or Census Reporter; CDC PLACES via Socrata; NLCD via the MRLC web service). A few are
+   Census API or Census Reporter; CDC PLACES via Socrata; LODES from the LEHD file server; NLCD via the MRLC web service). A few are
    account-gated or large and are dropped in locally (VIIRS night lights; NLCD Tree Canopy; the census
    block files for harmonization). Add a free Census API key for multi-vintage history.
 4. **Select indicators.** Reuse the provided indicator definitions or add new ones as configuration
@@ -588,68 +633,78 @@ The high-level recipe:
    serverless-function host such as Netlify).
 7. **Document and attribute.** Update the living documentation; retain attribution per the licenses below.
 
-A region-adoption **checklist** (counties, source access, indicator selection, geographies/crosswalks,
+A region-adoption checklist (counties, source access, indicator selection, geographies/crosswalks,
 deploy target) and estimated effort and skills accompany the public release.
 
 ## Licensing and attribution {#sec-license}
 
-The code will be released under a permissive license (MIT or Apache-2.0) and this paper under CC-BY; data
-retain their source licenses (ACS public domain; USGS/NLCD public; OpenStreetMap ODbL; EOG/VIIRS terms).
-A `CITATION.cff` file and an archived release DOI (via Zenodo) provide a canonical citation, and an
-explicit "how to attribute when adapting" note guides downstream reuse so that regional adaptations
-credit the original work. In the application, shareable and printable artifacts (profiles, reports) carry
+The code is released under the MIT License and this paper under Creative Commons Attribution 4.0
+(CC BY 4.0); data retain their source licenses (ACS and LODES public domain; CDC PLACES public domain;
+USGS/NLCD public; OpenStreetMap ODbL; EOG/VIIRS terms). The pipeline's reproducibility package is
+published as an open repository [@crxp_data_public]. A `CITATION.cff` file gives the canonical citation;
+an archived Zenodo release will add a DOI. Regional adaptations should credit the original work, as the
+license requires. In the application, shareable and printable artifacts (profiles, reports) carry
 a standard attribution footer.
 
 ## Living documentation {#sec-docs}
 
 Three companion documents, an application technical reference, a data-pipeline reference, and a
-methodology guide, are maintained alongside the code and serve as supplementary material to this paper,
-so that the public record stays synchronized with the running system.
+methodology guide, are maintained alongside the code and are supplementary material to this paper.
 
 # Discussion {#sec-discussion}
 
-**Strengths.** CRXP is, to our knowledge, unusual in combining an open application *and* an open pipeline,
-user-facing statistical uncertainty (down to FDR-controlled clusters and propagated aggregate error),
-documented and literature-grounded methods, plain-language cited briefs, open downloads, and
-configuration-driven portability to other regions.
+## Strengths {#sec-strengths}
 
-**Limitations.** The platform has so far been validated in a single region; broader adoption will test its
-generality. County metrics are the authoritative published county estimates and regional rates are exactly
-pooled, but the regional value of a *median or index* is a population-weighted approximation (an exact
-regional median would require microdata), and medians under tract harmonization are likewise approximated
-as a weighted average of tract medians (a binned-distribution reconstruction is planned). Neighborhood
-attribution depends on uneven OSM coverage and is explicitly approximate. Several sources are static or
-account-gated, and raster measures carry classification accuracy rather than sampling error. We state these
-openly precisely to invite correction.
+CRXP is, to our knowledge, unusual in combining an open application *and* an open pipeline with
+user-facing uncertainty. The combination matters more than any one part. Because a single versioned
+contract feeds the map, the profiles, the reports, and the downloads, a number carries the same margin of
+error, reliability flag, and vintage wherever a user meets it, and a correction to the pipeline reaches
+every page at the next build.
 
-**Equity and ethics.** Small-area data raises real concerns: disclosure risk and the suppression of small
-counts, the danger of over-interpreting uncertain estimates, deficit framing of neighborhoods, and
-questions of who governs and benefits from the platform. Surfacing uncertainty and reliability, naming
-methods plainly, and providing accessible briefs are part of a harm-reduction stance, but they are not
-sufficient on their own; community governance and clear communication remain essential.
+## Limitations {#sec-limitations}
 
-**Generalizability.** Most of the engine transfers directly; what each region must supply is local (county
+The platform has so far been validated in a single region, and broader adoption will test its
+generality. Most of the engine transfers without change; what each region must supply is local (county
 list, any parcel or local layers, and access to account-gated sources).
+
+Two statistical approximations remain. County metrics are the published county estimates and regional
+rates are exactly pooled, but the regional value of a *median or index* is a population-weighted
+approximation (an exact regional median would require microdata). Medians under tract harmonization are
+likewise approximated as a weighted average of tract medians; a binned-distribution reconstruction is
+planned.
+
+The data have limits too. Neighborhood attribution depends on uneven OSM coverage and is explicitly
+approximate. Several sources are static or account-gated, and raster measures carry classification
+accuracy rather than sampling error. We list these to invite correction.
+
+## Equity and ethics {#sec-ethics}
+
+Small-area data carries specific risks: disclosure and the suppression of small counts,
+over-interpretation of uncertain estimates, deficit framing of neighborhoods, and the question of who
+governs and benefits from the platform. Reliability flags, documented methods, and plain-language briefs
+reduce some of these risks. Governance is a separate question that software cannot settle; it needs
+community participation in deciding what is measured and how it is framed.
 
 # Future work {#sec-future}
 
-Planned extensions include public-use-microdata small-area estimation for cross-tabs the ACS does not
-publish at tract level; broader data breadth (jobs/LODES, housing affordability/CHAS, life expectancy, air
-quality, food access); populating the remaining Safety and Arts & Culture themes (the Engagement theme has
-been seeded with a residential-stability measure); a composite equity index with propagated uncertainty;
-demographic-disaggregation views; proximity/access indicators from parcels and network distance; and a
-shared regional data backend serving multiple applications from one warehouse.
+Planned data extensions include commuting flows and job characteristics from LODES, housing
+affordability (CHAS), life expectancy, air quality, and food access, and indicators for the empty Safety
+and Arts & Culture themes (Engagement so far has one residential-stability measure). Methodological work
+includes small-area estimation from public-use microdata for cross-tabulations the ACS does not publish
+at tract level, the binned-distribution reconstruction of harmonized medians, and cluster detection that
+accounts for each estimate's margin of error. On the product side, we plan a composite equity index with
+propagated uncertainty, demographic-disaggregation views, proximity indicators from parcels and network
+distance, and a shared regional data backend serving several applications from one warehouse.
 
 # Conclusion {#sec-conclusion}
 
-CRXP offers a transparent, replicable template for community-data infrastructure: open at both the data
-and application layers, explicit about uncertainty, documented and literature-grounded in its methods,
-accessible to non-experts, and adaptable by other regions. We publish it (platform, code, and this living
-paper) to invite adoption, scrutiny, and improvement.
+Communities will keep making decisions on tract-level numbers. CRXP's contribution is to publish those
+numbers with their uncertainty and their method attached, in a form another region can run. We publish
+the platform, its code, and this paper so that other regions can adopt it and reviewers can check it.
 
 # Reproducibility statement {#sec-repro}
 
-The platform's source code, data, and living documentation are openly available in the project repository, and an archived release will carry a DOI. The full reproducibility mechanisms (pinned dependencies, committed warehouse, provenance record, and contract validation) are detailed in @sec-warehouse. This paper is versioned; cite the version and date.
+The data pipeline, its committed warehouse, and its tests are openly available as a reproducibility package [@crxp_data_public], released under the MIT License; the live application is at <https://carolinasregionalexplorer.netlify.app>. An archived release will carry a DOI. The full reproducibility mechanisms (pinned dependencies, committed warehouse, provenance record, and contract validation) are detailed in @sec-warehouse. This paper is versioned; cite the version and date.
 
 # References {#sec-refs}
 

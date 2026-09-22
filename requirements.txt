@@ -1,4 +1,5 @@
 # crxp-data pipeline dependencies (Python 3.11+; tested on 3.14)
+numpy>=2.0
 pandas>=2.2
 pyarrow>=16
 duckdb>=1.0

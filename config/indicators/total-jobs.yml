@@ -1,0 +1,15 @@
+id: 82
+slug: total-jobs
+label: Total jobs (workplace)
+theme: economy
+format: number
+decimals: 0
+higher_is_better: null
+source: lodes
+lodes:
+  measure: total_jobs
+  years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022]
+description: Number of jobs located in the tract (workplace employment, LEHD LODES WAC)
+meta_why: >
+  Workplace jobs show where economic activity concentrates — offices, warehouses, and
+  commercial sites — which residential population counts alone cannot capture.

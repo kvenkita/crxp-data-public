@@ -141,6 +141,84 @@ def _zonal(ind: dict, region: dict, tract_tidy):
     return calc.add_reliability(pd.DataFrame(rows), region)  # moe None -> cv/reliability null
 
 
+def _lodes(ind: dict, region: dict, present_years: list[int]):
+    """County+region rollup: recompute the selected measure from summed county WAC.
+
+    Ratios (density, balance) cannot be averaged from tract values — we re-sum the raw
+    job counts at county/region scale and re-derive the measure, exactly mirroring
+    compute_measures but at the county grain.
+    """
+    from .sources import lodes
+
+    measure = ind["lodes"]["measure"]
+    wac = lodes.wac_tracts(region, present_years)
+    wac = wac.copy()
+    wac["cfips"] = wac["geoid"].str[:5]
+
+    # Sum all available WAC count columns by county×year, then add a region total.
+    sum_cols = [c for c in lodes.WAC_COLS if c in wac.columns]
+    county_sums = wac.groupby(["cfips", "year"], as_index=False)[sum_cols].sum()
+    region_sums = wac.groupby("year", as_index=False)[sum_cols].sum()
+    region_sums["cfips"] = REGION_GEOID
+    combined = (pd.concat([county_sums, region_sums], ignore_index=True)
+                .rename(columns={"cfips": "geoid"}))
+
+    # Precompute land area when the measure needs it.
+    carea: dict = {}
+    if "density" in measure:
+        carea = _county_land_area(region)
+        carea[REGION_GEOID] = sum(carea.values())
+
+    # Precompute households when the measure needs it.
+    hh_map: dict = {}
+    if measure == "jobs_housing_balance":
+        hh_raw = census_acs.fetch_county_raw(region, ["B25002_002E"], present_years)
+        for r in hh_raw.itertuples():
+            v = r.B25002_002E
+            if v == v:  # exclude NaN
+                hh_map[(r.geoid, int(r.year))] = v
+        # Region = sum of county households per year.
+        for y in present_years:
+            total_hh = sum(hh_map.get((c["fips"], y), 0) for c in region["counties"])
+            hh_map[(REGION_GEOID, y)] = total_hh if total_hh > 0 else None
+
+    rows = []
+    for rec in combined.to_dict("records"):
+        g, y = rec["geoid"], int(rec["year"])
+        tot = rec.get("C000", 0) or 0
+
+        if measure == "total_jobs":
+            val = float(tot)
+        elif measure == "job_density":
+            a = carea.get(g)
+            val = (tot / a) if (a and a > 0) else None
+        elif measure == "jobs_housing_balance":
+            h = hh_map.get((g, y))
+            val = (tot / h) if (h and h > 0) else None
+        elif measure == "high_wage_share":
+            ce03 = rec.get("CE03", 0) or 0
+            val = (100.0 * ce03 / tot) if tot > 0 else None
+        elif measure.endswith("_share"):
+            name = measure[:-6]
+            cols = lodes.INDUSTRY.get(name, [])
+            grp = sum(rec.get(c, 0) or 0 for c in cols)
+            val = (100.0 * grp / tot) if tot > 0 else None
+        elif measure.endswith("_density"):
+            name = measure[:-8]
+            cols = lodes.INDUSTRY.get(name, [])
+            grp = sum(rec.get(c, 0) or 0 for c in cols)
+            a = carea.get(g)
+            val = (grp / a) if (a and a > 0) else None
+        else:
+            val = None
+
+        rows.append({"geoid": g, "year": y,
+                     "value": round(val, 4) if val is not None else None,
+                     "moe": None})
+
+    return calc.add_reliability(pd.DataFrame(rows), region)
+
+
 def build_county_region(ind: dict, region: dict, tract_tidy, present_years: list[int]):
     source = ind.get("source", "acs")
     if source == "acs":
@@ -149,4 +227,6 @@ def build_county_region(ind: dict, region: dict, tract_tidy, present_years: list
         return _cdc(ind, region)
     if source in ("raster", "viirs"):
         return _zonal(ind, region, tract_tidy)
+    if source == "lodes":
+        return _lodes(ind, region, present_years)
     raise ValueError(f"county/region rollup: unknown source {source!r}")

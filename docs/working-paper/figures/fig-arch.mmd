@@ -1,0 +1,12 @@
+flowchart LR
+  subgraph Sources
+    ACS[Census ACS]
+    CDC[CDC PLACES]
+    LODES[Census LEHD LODES]
+    NLCD[USGS NLCD]
+    VIIRS[EOG VIIRS]
+  end
+  Sources --> ENG["Data engine<br/>ingest · harmonize · calc<br/>MOE · spatial · warehouse"]
+  ENG --> DC[("Data contract<br/>manifest · values + MOE ·<br/>analytics · aggregates ·<br/>meta")]
+  DC --> APP["Open-source web app<br/>map · trends · uncertainty<br/>· bivariate / LISA"]
+  ENG --> WH[("Warehouse<br/>parquet + DuckDB")]

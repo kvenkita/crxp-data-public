@@ -1,0 +1,15 @@
+id: 84
+slug: jobs-housing-balance
+label: Jobs–housing balance
+theme: economy
+format: number
+decimals: 2
+higher_is_better: null
+source: lodes
+lodes:
+  measure: jobs_housing_balance
+  years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022]
+description: Workplace jobs per household (LEHD LODES WAC over ACS occupied units)
+meta_why: >
+  The ratio of jobs to households distinguishes employment centers (>1) from bedroom
+  communities (<1), a core measure of local land-use balance.

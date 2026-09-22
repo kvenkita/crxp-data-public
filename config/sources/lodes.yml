@@ -1,0 +1,8 @@
+# LEHD LODES8 Workplace Area Characteristics (WAC) — workplace jobs by tract.
+version: LODES8
+segment: S000          # all workers
+job_type: JT00         # all jobs
+states: ['37', '45']   # NC, SC  (fips -> lowercase abbrev in the URL)
+years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022]
+url_template: "https://lehd.ces.census.gov/data/lodes/LODES8/{st}/wac/{st}_wac_S000_JT00_{year}.csv.gz"
+native_geo: block2020

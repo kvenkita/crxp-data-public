@@ -17,6 +17,7 @@ license, cadence, and **sustainability**. Machine-readable specs live in `config
 | EPA air quality (AQS) | environment | monitor point | 2025 | annual | active | low | `.../Data/4) Environmental Protection Agency (EPA)` |
 | NC parcels | (proximity input) | parcel | — | as released | active | low | `.../Data/NC_Parcels_all.gdb` |
 | Mecklenburg tax parcels | (proximity input) | parcel | 2025 | annual | active | low | QoL `.../Data/Raw/Shared-Data/2025/TaxData_2025.gpkg` |
+| LEHD LODES8 WAC (workplace jobs) | economy | block (2020) | 2022 | annual | active | low | Census LEHD `https://lehd.ces.census.gov/data/lodes/LODES8/` |
 
 **Gaps to resolve:** SC parcels (York/Chester/Lancaster) for proximity; geography crosswalks (pre-2020
 ACS vintages → 2020 tracts). **Replacement plan:** food access → Tier-4 grocery proximity; eviction →

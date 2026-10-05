@@ -1,0 +1,37 @@
+{
+  "id": 49,
+  "slug": "fair-poor-health",
+  "label": "Fair or poor health (adults)",
+  "source": "cdc_places",
+  "status": "pass",
+  "checked_on": "2026-10-05",
+  "range": null,
+  "years": {
+    "2019": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    },
+    "2020": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    },
+    "2021": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    },
+    "2022": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    },
+    "2023": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    }
+  },
+  "problems": []
+}

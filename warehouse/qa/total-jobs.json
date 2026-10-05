@@ -1,0 +1,57 @@
+{
+  "id": 82,
+  "slug": "total-jobs",
+  "label": "Total jobs (workplace)",
+  "source": "lodes",
+  "status": "pass",
+  "checked_on": "2026-10-05",
+  "range": null,
+  "years": {
+    "2014": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2015": {
+      "coverage": 0.999,
+      "null_rate": 0.0,
+      "n": 751
+    },
+    "2016": {
+      "coverage": 0.999,
+      "null_rate": 0.0,
+      "n": 751
+    },
+    "2017": {
+      "coverage": 0.999,
+      "null_rate": 0.0,
+      "n": 751
+    },
+    "2018": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2019": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2020": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2021": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2022": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    }
+  },
+  "problems": []
+}

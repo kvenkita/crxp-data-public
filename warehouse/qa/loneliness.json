@@ -1,0 +1,17 @@
+{
+  "id": 77,
+  "slug": "loneliness",
+  "label": "Loneliness (adults)",
+  "source": "cdc_places",
+  "status": "pass",
+  "checked_on": "2026-10-05",
+  "range": null,
+  "years": {
+    "2023": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    }
+  },
+  "problems": []
+}

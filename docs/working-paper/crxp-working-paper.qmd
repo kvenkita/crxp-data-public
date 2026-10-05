@@ -46,10 +46,13 @@ format:
     fig-cap-location: bottom
     fig-pos: 'H'
     pdf-engine: xelatex
+    include-in-header:
+      text: |
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},fontsize=\footnotesize}
 ---
 
 ::: callout-note
-**Working paper — v0.8 (draft).** This is a *living* document, updated as the platform develops; cite the
+**Working paper — v0.9 (draft).** This is a *living* document, updated as the platform develops; cite the
 version and date. The platform's living technical documentation (application, data pipeline, methodology
 guide) is a companion to this paper. Citations and the reference list are managed in BibTeX
 (Chicago author–date). Figures are screenshots of the running application, placed beside the methods
@@ -247,6 +250,21 @@ it. One ingester module per
 source sits behind a common interface, so adding a source (as LODES showed) or many measures from an
 existing source (as the PLACES expansion showed) is a localized, configuration-driven change.
 
+**Bringing your own tract data.** Regions are not limited to these five sources. A generic
+`tract_csv` source turns any file keyed by an 11-digit census-tract GEOID into an indicator with one
+configuration file: the adopter names the GEOID and value columns, the data year, the kind of measure
+(count, proportion, rate, median, or index), and the source credit. An optional 90% MOE column passes
+through the same CV and reliability rules as the ACS. Files on 2010 tracts are allocated to 2020 tracts
+with the platform's crosswalk: counts by allocation factor, and rates and proportions through
+population-weighted pseudo-counts, which require a population column. Medians and indices have no
+defensible allocation and must be supplied on 2020 tracts. The build stops if more than 5% of the file's
+GEOIDs are not tracts of the declared vintage, since 2010 and 2020 tracts share most of their IDs and a
+file on the wrong vintage would otherwise leave a third of the map blank while passing the coverage check.
+Because the source publishes no county figure, county and regional values are derived from the tracts:
+population-weighted for most kinds, and summed for counts, where a county total is published only if
+every tract in the county has a value. The application labels these values as derived. The worked example in @sec-walkthrough follows one such
+file from download to map.
+
 A recurring failure mode for indicator systems that aggregate many feeds is *silent staleness*: a series
 that quietly stops updating while still appearing current. We mitigate this with a machine-readable
 *source registry* that records each source's provider, native geography, vintages, license, and update
@@ -407,7 +425,9 @@ most defensible kind. Where a measure is modeled rather than tabulated, we use *
 small-area estimates*: the CDC PLACES health measures are produced by multilevel regression and
 poststratification (MRP) on survey data, a now-standard approach for small-area prevalence [@gelman_little1997; @cdcplaces_methodology]. For cross-tabulations the ACS does not publish at tract level, a
 planned tier will fit small-area models to public-use microdata with design-based standard errors in the
-Fay–Herriot tradition [@fay_herriot1979; @rao_molina2015]. Every indicator records its estimation
+Fay–Herriot tradition [@fay_herriot1979; @rao_molina2015]. A companion review compares the methods
+available for that tier, from allocation-factor crosswalks to model-based estimation, when the microdata
+geography (the PUMA) does not nest into counties [@venkitasubramanian2026_microdata]. Every indicator records its estimation
 method in the warehouse and metadata, so users and reviewers can see *how* each number was produced
 and treat direct, model-based, and (eventually) survey-modeled estimates with appropriate care.
 
@@ -477,7 +497,8 @@ Spatial weights are k-nearest-neighbor (k = 8), row-standardized, built from eac
 *representative point* (a point guaranteed to lie inside the polygon). A bounding-box midpoint, by
 contrast, can fall outside an L-shaped or coastal tract and distort the neighbor graph. LISA and z-scores
 are computed once in the pipeline (the single statistical source of truth) and consumed by the app as
-precomputed values.
+precomputed values. Clusters are computed for census tracts only; the county view offered for the
+choropleth is not available in cluster mode.
 
 ![Spatial clusters (LISA) for bachelor's-degree attainment, 2024: High–High and Low–Low clusters and High–Low / Low–High spatial outliers, after FDR correction.](figures/fig-lisa.png){#fig-lisa width=95%}
 
@@ -486,7 +507,8 @@ precomputed values.
 To examine how two conditions co-occur, such as poverty and educational attainment, the application
 crosses two indicators on a 3×3 bivariate choropleth: each indicator is split into rank terciles
 and the nine combinations are given a two-dimensional color scheme, a technique with a long cartographic
-pedigree [@olson1981; @brewer2016]. Hovering a grid cell highlights the matching tracts.
+pedigree [@olson1981; @brewer2016]. Hovering a grid cell highlights the matching tracts. Like the cluster
+map, the bivariate view is available for census tracts only.
 
 Beside the map, a correlation scatter plots the two indicators' standardized values, one dot per
 tract colored by its bivariate class, with marginal distributions, a least-squares regression line, and
@@ -536,6 +558,11 @@ or their county (123). The
 parameters (grid resolution, 15% share floor, three-name cap, 8 km cap) are configuration values, and the
 whole step is pure and unit-tested.
 
+A region that keeps its own neighborhood points (a planning department's list, for example) can use
+them instead of OSM: the same attribution runs on any GeoJSON file of named points
+(`gen-neighborhoods.mjs --points <file> --name-field <field> --attribution "<credit>"`), and the credit
+replaces the OSM notice on the Methods page and in the download bundle.
+
 These names are approximate and for orientation only, and the interface says so; they are not
 official boundaries, and OSM coverage varies. The attribution is dasymetric in spirit [@mennis2003]: it
 distributes a fuzzy, point-based signal over areal units using an explicit distance-based rule, without
@@ -563,13 +590,18 @@ Quality control is layered. Ingestion is defensive: ACS requests retry with back
 failure (some counties returned, others did not) raises an error instead of silently publishing a
 truncated year that would corrupt the series. Only a vintage that is absent for every county is
 skipped. A build-time QA gate fails the build if a year's geographic coverage collapses, its
-null rate is excessive, or finite values fall outside a configured plausible range. The statistical core
+null rate is excessive, or finite values fall outside a configured plausible range. Each check also
+leaves a record: a JSON report per indicator and a summary table in `warehouse/qa/` (@fig-qa-report),
+written for failed checks as well as passing ones. `python -m crxp_data.qa --all` re-runs the gate over
+the committed warehouse without fetching anything, and the reports ship with the public repository. The statistical core
 (MOE propagation, the difference test, the harmonization allocation, representative-point centroids, and
 the FDR procedure, verified to control false discoveries on spatially random data) is unit-tested
 against worked examples. Finally, the application's contract validator checks the handed-off files
 before every build: supported `schemaVersion`, value-years aligned to the manifest, numeric sanity (no
 NaN), analytics content (LISA quadrants in range, years aligned), aggregate completeness, and geoid
 reconciliation.
+
+![The QA summary for all 68 indicators, regenerated from the committed warehouse: years checked, the lowest tract coverage and highest missing-value rate across those years, any configured value range, and pass or fail.](figures/fig-qa-report.png){#fig-qa-report width=95%}
 
 # The application {#sec-app}
 
@@ -625,23 +657,100 @@ The high-level recipe:
    account-gated or large and are dropped in locally (VIIRS night lights; NLCD Tree Canopy; the census
    block files for harmonization). Add a free Census API key for multi-vintage history.
 4. **Select indicators.** Reuse the provided indicator definitions or add new ones as configuration
-   (choosing a kind: count / median / proportion / rate / density). Bulk additions can be scripted.
+   (choosing a kind: count / median / proportion / rate / density). Bulk additions can be scripted. A
+   local or third-party tract file enters through the generic `tract_csv` source (@sec-walkthrough).
 5. **Build.** Run the pipeline per indicator; the QA gate and the printed summary (coverage,
    comparable-period change and significance, reliability mix) surface problems early.
 6. **Hand off and deploy.** Re-run with handoff to merge the data contract into the application, validate
-   it, build the static site, and deploy to any static host (the optional address-search function needs a
-   serverless-function host such as Netlify).
+   it, build the static site, and deploy to any static host. Address search runs as a small serverless
+   function (Netlify in our deployment). Pressing Enter resolves an address to its tract through the
+   U.S. Census Bureau geocoder, which needs no key. Type-ahead suggestions use Geoapify: create a free
+   account at geoapify.com, copy its API key, and set it as `GEOAPIFY_API_KEY` in the Netlify site's
+   environment variables (or in a local `.env` file for `netlify dev`). Without the key, suggestions are
+   off and Enter-to-search still works. Suggestions are limited to the region's bounding box, which the
+   build regenerates from the county geometry.
 7. **Document and attribute.** Update the living documentation; retain attribution per the licenses below.
 
-A region-adoption checklist (counties, source access, indicator selection, geographies/crosswalks,
-deploy target) and estimated effort and skills accompany the public release.
+See @sec-checklist for everything a new region edits.
+
+## Region adoption checklist {#sec-checklist}
+
+A new region starts from one file, `config/region.yml`. The excerpt below is the Charlotte file with
+three of its fourteen counties shown.
+
+```yaml
+region:
+  name: Charlotte 14-county region
+  tract_vintage: 2020          # publish grain: 2020 Census tracts
+  crs: EPSG:4326
+
+counties:
+  - { fips: '37119', name: Mecklenburg, state: NC }
+  - { fips: '37025', name: Cabarrus, state: NC }
+  - { fips: '45091', name: York, state: SC }
+  # ...
+
+acs:
+  product: acs5
+  provider: auto               # Census API if CENSUS_API_KEY is set, else Census Reporter
+  annual_years: [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
+  tract2010_years: [2014, 2015, 2016, 2017, 2018, 2019]
+
+reliability:
+  cv_caution: 15.0
+  cv_unreliable: 30.0
+  z_90: 1.645
+```
+
+`region`
+:   The region's display name, the tract vintage published (2020), and the coordinate system.
+
+`counties`
+:   Every county by five-digit FIPS code. All tract filtering, county profiles, and regional pooling
+    follow this list.
+
+`acs`
+:   The ACS product and the endpoint years to fetch. Years listed in `tract2010_years` use 2010 tract
+    boundaries and are harmonized to 2020 tracts automatically; the comparable non-overlapping periods are
+    derived from the latest year.
+
+`reliability`
+:   The coefficient-of-variation thresholds for the caution and unreliable flags, and the z-value of the
+    published 90% margins of error.
+
+@tbl-checklist lists what else a region touches. We found these items by searching both code bases
+for assumptions specific to Charlotte; the items marked *automatic* need no action.
+
+| What | Where | Automatic or manual |
+|---|---|---|
+| Counties, ACS years, reliability thresholds | `config/region.yml` | Manual (one file) |
+| State codes for LODES downloads | `config/sources/lodes.yml` (`states`) | Manual |
+| Indicator selection and new tract files | `config/indicators/*.yml` (@sec-walkthrough) | Manual (one file each) |
+| Census API key (optional, for volume) | `CENSUS_API_KEY` environment variable | Manual |
+| Tract and county geometry | `scripts/gen-fixture.mjs --src <dir>`, then `scripts/gen-geo.mjs` | Manual: these scripts were written for Charlotte's source files and must be adapted |
+| City and town boundaries | `scripts/gen-geo.mjs --shp <dir>` | Manual: supply municipal boundary files; the NC and SC file names and county lists are specific to this region |
+| Neighborhood names | `gen-neighborhoods.mjs` | Automatic (OSM), or `--points` with a local file |
+| Map extent and initial view | Fitted to the tract geometry | Automatic |
+| Address-search area | `netlify/region.mjs`, generated at build | Automatic |
+| Address-search key | `GEOAPIFY_API_KEY` in the host's environment | Manual (optional) |
+| Download bundle README (geography, sources) | Generated from the manifest | Automatic |
+| Site text, branding, and logo | Home, About, Methods pages; header and footer | Manual |
+| Regional context panel | `RegionContext.svelte` | Manual (rewrite or remove) |
+| Plain-language indicator briefs | `indicatorBriefs.js` | Manual: local context and resources are Charlotte-specific |
+| Default county for Reports | Site navigation (`/county/<fips>`) | Manual |
+| Contact in the OpenStreetMap request header | `gen-neighborhoods.mjs` | Manual |
+
+: Configuration and content a new region edits. Scripts are under `scripts/`; the briefs file is under `src/lib/content/`. {#tbl-checklist tbl-colwidths="[32,34,34]"}
+
+Running the pipeline needs command-line Python and Node, comfort editing YAML, and a static web host.
+No desktop GIS software is required.
 
 ## Licensing and attribution {#sec-license}
 
 The code is released under the MIT License and this paper under Creative Commons Attribution 4.0
 (CC BY 4.0); data retain their source licenses (ACS and LODES public domain; CDC PLACES public domain;
 USGS/NLCD public; OpenStreetMap ODbL; EOG/VIIRS terms). The pipeline's reproducibility package is
-published as an open repository [@crxp_data_public]. A `CITATION.cff` file gives the canonical citation;
+published as an open repository [@crxp_data_public], and the application source is public as well [@crxp_app]. A `CITATION.cff` file gives the canonical citation;
 an archived Zenodo release will add a DOI. Regional adaptations should credit the original work, as the
 license requires. In the application, shareable and printable artifacts (profiles, reports) carry
 a standard attribution footer.
@@ -673,8 +782,8 @@ approximation (an exact regional median would require microdata). Medians under 
 likewise approximated as a weighted average of tract medians; a binned-distribution reconstruction is
 planned.
 
-The data have limits too. Neighborhood attribution depends on uneven OSM coverage and is explicitly
-approximate. Several sources are static or account-gated, and raster measures carry classification
+The data have limits too. Neighborhood attribution is approximate and, with the default OpenStreetMap
+points, depends on uneven OSM coverage; a region can substitute its own points file. Several sources are static or account-gated, and raster measures carry classification
 accuracy rather than sampling error. We list these to invite correction.
 
 ## Equity and ethics {#sec-ethics}
@@ -691,10 +800,12 @@ Planned data extensions include commuting flows and job characteristics from LOD
 affordability (CHAS), life expectancy, air quality, and food access, and indicators for the empty Safety
 and Arts & Culture themes (Engagement so far has one residential-stability measure). Methodological work
 includes small-area estimation from public-use microdata for cross-tabulations the ACS does not publish
-at tract level, the binned-distribution reconstruction of harmonized medians, and cluster detection that
+at tract level [@venkitasubramanian2026_microdata], the binned-distribution reconstruction of harmonized medians, and cluster detection that
 accounts for each estimate's margin of error. On the product side, we plan a composite equity index with
 propagated uncertainty, demographic-disaggregation views, proximity indicators from parcels and network
-distance, and a shared regional data backend serving several applications from one warehouse.
+distance, and a shared regional data backend serving several applications from one warehouse. A container image
+(Docker) bundling the pipeline and the application build would let adopters run CRXP without setting up
+Python and Node environments.
 
 # Conclusion {#sec-conclusion}
 
@@ -704,9 +815,81 @@ the platform, its code, and this paper so that other regions can adopt it and re
 
 # Reproducibility statement {#sec-repro}
 
-The data pipeline, its committed warehouse, and its tests are openly available as a reproducibility package [@crxp_data_public], released under the MIT License; the live application is at <https://carolinasregionalexplorer.netlify.app>. An archived release will carry a DOI. The full reproducibility mechanisms (pinned dependencies, committed warehouse, provenance record, and contract validation) are detailed in @sec-warehouse. This paper is versioned; cite the version and date.
+The data pipeline, its committed warehouse, and its tests are openly available as a reproducibility package [@crxp_data_public], released under the MIT License; the application source is public [@crxp_app], and the live application is at <https://carolinasexplorer.com/map>. An archived release will carry a DOI. The full reproducibility mechanisms (pinned dependencies, committed warehouse, provenance record, and contract validation) are detailed in @sec-warehouse. This paper is versioned; cite the version and date.
 
 # References {#sec-refs}
 
 ::: {#refs}
 :::
+
+
+::: {.content-visible when-format="pdf"}
+```{=latex}
+\appendix
+```
+:::
+
+# Worked example: adding a data source end to end {#sec-walkthrough .appendix}
+
+This appendix follows one new dataset from download to map, using FEMA's National Risk Index (NRI) as
+the example. The indicator was built in a scratch copy of the platform to produce the listings and
+screenshots below; it is an illustration and is not part of the live explorer. Adding an indicator from
+a source the platform already supports is shorter still: it takes one configuration file like
+`config/indicators/median-age.yml` and the build command in step 3.
+
+![The path a new tract file takes through the platform. The adopter supplies the two highlighted inputs, the file (1) and its configuration (2); the platform does the rest (3–7).](figures/fig-walkthrough-arch.png){#fig-walkthrough-arch width=100%}
+
+**Step 1: get the data.** The NRI publishes a composite risk score for every census tract, built from
+expected annual losses across eighteen natural hazards together with social vulnerability and community
+resilience. FEMA serves it through a public ArcGIS feature service; the script below downloads the North
+and South Carolina tracts (v1.20, December 2025) into `data/local/`. Any table with an 11-digit tract
+GEOID and a value column would work the same way.
+
+{{< include listings/a1-download.md >}}
+
+**Step 2: describe it.** One YAML file tells the platform what the file contains: which column holds the
+GEOID and which the value, the data year and tract vintage, the kind of measure, and how to credit the
+source. The score has no margin of error, so `moe_col` is omitted; a file that has
+one names it here and gets the same reliability flags as the ACS. Check the file's tract vintage before
+setting `tract_vintage`: NRI v1.20 uses 2020 tracts, and the build stops with a hint if the GEOIDs do not
+match the declared vintage.
+
+{{< include listings/a2-config.md >}}
+
+**Step 3: build.** A single command ingests the file, keeps the region's tracts, runs the QA gate, writes
+the warehouse, computes z-scores and clusters, derives county and regional values, and merges the
+result into the application's data contract.
+
+{{< include listings/a3-build.md >}}
+
+**Step 4: check the QA report.** The gate's record for the new indicator: all 752 tracts present, no
+missing values, status `pass`. The same file is regenerated on every build, and a failing check writes
+it before the build stops.
+
+{{< include listings/a4-qa.md >}}
+
+**Step 5: query the warehouse.** The new rows sit in the same long-format table as every other
+indicator, so any SQL client can read them. `moe` and `reliability` are empty because the source
+publishes no margin of error.
+
+{{< include listings/a5-warehouse.md >}}
+
+**Step 6: inspect the contract.** The handoff added a manifest entry, which credits FEMA and records that
+county values are derived from tracts, and a values file the application reads directly.
+
+{{< include listings/a6-contract.md >}}
+
+**Step 7: view it in the application.** No application code changed. The indicator appears in the
+Environment theme with its own choropleth, indicator page, county view, and cluster map
+(@fig-wt-map, @fig-wt-info, @fig-wt-county, @fig-wt-lisa).
+
+![The new indicator on the tract choropleth, classified into quintiles like every other indicator.](figures/fig-wt-map.png){#fig-wt-map width=95%}
+
+![The indicator page generated from the configuration: the FEMA credit, the note that the source publishes no margin of error, and the note that county and regional figures are derived from tracts.](figures/fig-wt-info.png){#fig-wt-info width=95%}
+
+![The county view, from county values derived as population-weighted means of the tract scores.](figures/fig-wt-county.png){#fig-wt-county width=95%}
+
+![Spatial clusters (LISA) for the new indicator, computed at tract level during the build; the county option is disabled in this mode.](figures/fig-wt-lisa.png){#fig-wt-lisa width=95%}
+
+In all, the adopter supplied one CSV file and one YAML file. Quality checks, storage, spatial
+statistics, county and regional values, metadata, and the map came from the platform.

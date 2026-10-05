@@ -1,0 +1,57 @@
+{
+  "id": 76,
+  "slug": "tree-canopy",
+  "label": "Tree canopy",
+  "source": "raster",
+  "status": "pass",
+  "checked_on": "2026-10-05",
+  "range": null,
+  "years": {
+    "2015": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2016": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2017": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2018": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2019": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2020": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2021": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2022": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2023": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    }
+  },
+  "problems": []
+}

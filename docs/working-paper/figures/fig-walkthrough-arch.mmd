@@ -1,0 +1,13 @@
+flowchart LR
+  SRC["Built-in sources<br/>ACS · CDC PLACES · LODES<br/>NLCD · VIIRS"]
+  NRI["① FEMA NRI tract file<br/>(any tract CSV)"]
+  CFG["② Indicator config<br/>hazard-risk.yml"]
+  SRC --> ENG
+  NRI --> ENG
+  CFG --> ENG
+  ENG["③ Data engine (build)<br/>ingest · harmonize · calc<br/>MOE · spatial<br/>④ QA gate + report"]
+  ENG --> WH[("⑤ Warehouse<br/>parquet + DuckDB")]
+  ENG --> DC[("⑥ Data contract<br/>manifest · values ·<br/>analytics · aggregates")]
+  DC --> APP["⑦ Web app<br/>map · county view<br/>clusters · indicator page"]
+  style NRI fill:#fff4d6,stroke:#c99a2e
+  style CFG fill:#fff4d6,stroke:#c99a2e

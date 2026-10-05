@@ -136,7 +136,34 @@ SOURCE_LABELS = {
 }
 
 
+SOURCE_LINKS = {"cdc_places": "https://www.cdc.gov/places/", "raster": "https://www.mrlc.gov/",
+                "viirs": "https://eogdata.mines.edu/products/vnl/",
+                "lodes": "https://lehd.ces.census.gov/data/"}
+
+
+def _source_label(indicator: dict) -> str:
+    if indicator.get("source") == "tract_csv":
+        return indicator["tract_csv"]["source_label"]
+    return SOURCE_LABELS.get(indicator.get("source", "acs"), SOURCE_LABELS["acs"])
+
+
+def _source_link(indicator: dict) -> str | None:
+    if indicator.get("source") == "tract_csv":
+        return indicator["tract_csv"].get("source_url")
+    return SOURCE_LINKS.get(indicator.get("source", "acs"), "https://www.census.gov/programs-surveys/acs")
+
+
 def _about_text(indicator: dict, span: str) -> str:
+    if indicator.get("source") == "tract_csv":
+        tc = indicator["tract_csv"]
+        harm = (" The source reports 2010 census tracts; values were allocated to 2020 tracts with the "
+                "platform's tract crosswalk." if int(tc.get("tract_vintage", 2020)) == 2010 else "")
+        moe = ("Values carry the source's published margins of error, and low-reliability estimates "
+               "are flagged." if tc.get("moe_col") else
+               "The source publishes no margin of error, so no reliability flag is shown.")
+        how = "summed" if tc["kind"] == "count" else "population-weighted"
+        return (f"Tract-level values supplied by {tc['source_label']} ({span}).{harm} {moe} County and "
+                f"regional figures are derived from the tract values ({how}), not published by the source.")
     if indicator.get("source") == "viirs":
         return (f"Area-weighted mean nighttime-light radiance (nW/cm²/sr) per tract from the Earth "
                 f"Observation Group's VIIRS annual composites ({span}). Higher values indicate more "
@@ -168,16 +195,14 @@ def _meta_markdown(indicator: dict, years: list[int]) -> str:
                  else "A higher value generally signals greater need." if hib is False
                  else "Higher and lower values are not inherently better or worse.")
     span = f"{years[0]}–{years[-1]}" if years else ""
-    src = indicator.get("source", "acs")
-    label = SOURCE_LABELS.get(src, SOURCE_LABELS["acs"])
-    link = {"cdc_places": "https://www.cdc.gov/places/", "raster": "https://www.mrlc.gov/",
-            "viirs": "https://eogdata.mines.edu/products/vnl/",
-            "lodes": "https://lehd.ces.census.gov/data/"}.get(
-        src, "https://www.census.gov/programs-surveys/acs")
+    label = _source_label(indicator)
+    link = _source_link(indicator)
+    short = label.split(',')[0].split(' (')[0]
+    resource = f"- [{short}]({link})\n" if link else f"- {short}\n"
     return (f"## {indicator['label']}\n{indicator.get('description','')}\n\n"
             f"### Why is this important?\n{indicator.get('meta_why','').strip()} {direction}\n\n"
             f"### About the Data\n{_about_text(indicator, span)}\n\n_**Source**: {label}._\n\n"
-            f"### Additional Resources\n- [{label.split(',')[0].split(' (')[0]}]({link})\n")
+            f"### Additional Resources\n{resource}")
 
 
 def manifest_entry(indicator: dict, years: list[int]) -> dict:
@@ -187,7 +212,7 @@ def manifest_entry(indicator: dict, years: list[int]) -> dict:
         "format": indicator.get("format", "number"), "decimals": indicator.get("decimals", 1),
         "higherIsBetter": indicator.get("higher_is_better"),
         "classMethod": "quantile", "years": years, "geoLevels": ["tract", "county"],
-        "source": SOURCE_LABELS.get(indicator.get("source", "acs"), SOURCE_LABELS["acs"]),
+        "source": _source_label(indicator),
         "vintage": f"{years[0]}–{years[-1]}" if years else "",
         "metaPath": f"/data/meta/m{indicator['id']}.md",
         "related": [], "hasZ": True, "hasLisa": True,
@@ -197,6 +222,8 @@ def manifest_entry(indicator: dict, years: list[int]) -> dict:
         entry["trendNote"] = ("Model-based estimates from separate annual CDC PLACES releases — shown as "
                               "levels per year, not comparable over time (CDC advises against using them "
                               "to track local change).")
+    if indicator.get("source") == "tract_csv":
+        entry["countyMethod"] = "derived from tracts"
     return entry
 
 

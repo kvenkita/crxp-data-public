@@ -113,6 +113,17 @@ def run(slug: str, handoff: bool = False, reexport: bool = False, refetch: bool 
         print("[2/6] Calc (job measure; no sampling MOE) ...")
         tidy = calc.add_reliability(raw, region)
         src_meta = {"est_method": "lodes_wac", "source_id": "lodes", "span": 0, "rolling": False}
+    elif source == "tract_csv":
+        from .sources import tract_csv
+        tc = ind["tract_csv"]
+        print(f"[1/6] Ingesting tract CSV {tc['path']} ({tc['source_label']}) ...")
+        raw = tract_csv.fetch_indicator(region, ind)
+        if int(tc.get("tract_vintage", 2020)) == 2010:
+            print("      allocated 2010 tracts -> 2020 tracts (crosswalk)")
+        print("[2/6] Calc (value + optional MOE -> CV/reliability) ...")
+        tidy = calc.add_reliability(raw, region)
+        src_meta = {"est_method": "tract_csv", "source_id": tc.get("source_id", "tract_csv"),
+                    "span": 0, "rolling": False}
     else:
         raise SystemExit(f"unknown source {source!r}")
 
@@ -135,11 +146,11 @@ def run(slug: str, handoff: bool = False, reexport: bool = False, refetch: bool 
                     .drop_duplicates(["geoid", "year"], keep="last"))
             print(f"      merged with warehouse -> years {sorted({int(y) for y in tidy['year'].unique()})}")
 
-        from .qa import check_tidy
-        qa_years = sorted({int(y) for y in tidy["year"].unique()})
-        rep = check_tidy(tidy, expected_geoids=allowed, years=qa_years,
-                         value_range=ind.get("qa", {}).get("range"), label=ind["slug"])
-        print(f"      QA gate OK ({len(rep)} years checked; coverage/null-rate/range within bounds)")
+        from .qa import run_and_record
+        from .warehouse import WAREHOUSE
+        rep = run_and_record(ind, tidy, allowed, out_dir=WAREHOUSE / "qa",
+                             checked_on=dt.date.today().isoformat())
+        print(f"      QA gate OK ({len(rep)} years checked; report -> warehouse/qa/{ind['slug']}.json)")
 
         print("[2/4] Warehouse (parquet + duckdb) ...")
         wh = tidy.copy()

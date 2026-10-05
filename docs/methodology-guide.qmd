@@ -315,6 +315,17 @@ This is implemented in `aggregate.build_county_region`, persisted to a `county_i
 `aggregates.json` (`countyAvg`/`regionAvg` with `countyMoe`/`regionMoe`). The app labels these lines
 **County** and **Region**.
 
+**User-supplied tract files (`tract_csv`).** A file brought in through the generic tract source has no
+published county estimate, so its county and region values are *derived from tracts*: counts are summed,
+with MOEs combined in quadrature, and every other kind is a population-weighted mean of tract values. A
+count total is published only when every tract in the area has a value; with suppressed or missing tracts
+it is left empty rather than understated. For
+rates and proportions this matches the pooled rate only when the tract denominators are proportional to
+total population; for medians and indices it is the same documented approximation used for regional
+medians. The app's metadata labels these values as derived. If the file is on 2010 tracts, counts are
+allocated to 2020 tracts by allocation factor and rates/proportions by population-weighted pseudo-counts
+(the PLACES method); medians and indices must be supplied on 2020 tracts.
+
 **Note.** The one remaining simple unweighted mean is the *ad-hoc average of a user-selected set of tracts*
 in a custom report (`series.js seriesForSet`) — a selection summary, not a published geography.
 

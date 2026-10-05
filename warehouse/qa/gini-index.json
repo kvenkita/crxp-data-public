@@ -1,0 +1,67 @@
+{
+  "id": 57,
+  "slug": "gini-index",
+  "label": "Income inequality (Gini)",
+  "source": "acs",
+  "status": "pass",
+  "checked_on": "2026-10-05",
+  "range": null,
+  "years": {
+    "2014": {
+      "coverage": 0.999,
+      "null_rate": 0.004,
+      "n": 751
+    },
+    "2015": {
+      "coverage": 0.999,
+      "null_rate": 0.004,
+      "n": 751
+    },
+    "2016": {
+      "coverage": 0.999,
+      "null_rate": 0.004,
+      "n": 751
+    },
+    "2017": {
+      "coverage": 0.999,
+      "null_rate": 0.004,
+      "n": 751
+    },
+    "2018": {
+      "coverage": 0.999,
+      "null_rate": 0.004,
+      "n": 751
+    },
+    "2019": {
+      "coverage": 0.999,
+      "null_rate": 0.004,
+      "n": 751
+    },
+    "2020": {
+      "coverage": 1.0,
+      "null_rate": 0.007,
+      "n": 752
+    },
+    "2021": {
+      "coverage": 1.0,
+      "null_rate": 0.007,
+      "n": 752
+    },
+    "2022": {
+      "coverage": 1.0,
+      "null_rate": 0.007,
+      "n": 752
+    },
+    "2023": {
+      "coverage": 1.0,
+      "null_rate": 0.007,
+      "n": 752
+    },
+    "2024": {
+      "coverage": 1.0,
+      "null_rate": 0.007,
+      "n": 752
+    }
+  },
+  "problems": []
+}

@@ -1,0 +1,32 @@
+{
+  "id": 45,
+  "slug": "high-blood-pressure",
+  "label": "High blood pressure (adults)",
+  "source": "cdc_places",
+  "status": "pass",
+  "checked_on": "2026-10-05",
+  "range": null,
+  "years": {
+    "2017": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    },
+    "2019": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    },
+    "2021": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 1028
+    },
+    "2023": {
+      "coverage": 0.996,
+      "null_rate": 0.0,
+      "n": 749
+    }
+  },
+  "problems": []
+}

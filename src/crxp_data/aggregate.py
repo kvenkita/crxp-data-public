@@ -10,6 +10,7 @@ The 14-county region has no single published estimate, so it is POOLED correctly
   - proportion / rate -> sum(numerator) / sum(denominator)         (exact pooled rate)
   - medians / indices -> population-weighted mean of county values  (documented approximation)
   - raster / zonal    -> land-area-weighted mean                    (exact regional zonal for shares)
+  - tract_csv         -> derived from tracts: counts summed, other kinds population-weighted
 
 Output: a long frame [geoid, year, value, moe, cv, reliability] with one row per region county
 plus a row whose geoid is REGION_GEOID for the pooled region.
@@ -18,7 +19,7 @@ from __future__ import annotations
 import math
 import pandas as pd
 
-from . import geo
+from . import geo, config
 from .sources import census_acs
 from .indicators import calc
 
@@ -219,6 +220,82 @@ def _lodes(ind: dict, region: dict, present_years: list[int]):
     return calc.add_reliability(pd.DataFrame(rows), region)
 
 
+def tract_population(years: list[int]) -> dict:
+    """{(tract_geoid, year): population} from the committed total-population warehouse.
+
+    For each requested year, uses the nearest year the warehouse has (ties -> the later year).
+    """
+    from . import warehouse
+    pid = config.load_indicator("total-population")["id"]
+    df = warehouse.read_warehouse(pid)
+    if df is None or df.empty:
+        raise RuntimeError("tract_csv county rollup needs the total-population warehouse; "
+                           "build total-population first")
+    have = sorted({int(y) for y in df["year"].unique()})
+    pop: dict = {}
+    for y in years:
+        yy = min(have, key=lambda h: (abs(h - y), -h))
+        for r in df[df["year"] == yy].itertuples():
+            pop[(r.geoid, y)] = r.value
+    return pop
+
+
+def _tract_derived(ind: dict, region: dict, tract_tidy, pop: dict | None = None,
+                   expected: set | None = None):
+    """tract_csv: no published county estimate, so derive county + region from tracts.
+
+    count -> sum of tract values (MOE in quadrature), published only when every expected tract in
+    the area has a value (a total over some tracts is not a total); every other kind ->
+    population-weighted mean of the tracts that have values (a documented approximation, labeled
+    "derived from tracts" in the app). `expected` is the region's 2020 tract set (default: the app's).
+    """
+    kind = ind["tract_csv"]["kind"]
+    years = sorted({int(y) for y in tract_tidy["year"].unique()})
+    if kind != "count" and pop is None:
+        pop = tract_population(years)
+    if kind == "count" and expected is None:
+        expected = set(geo.load_tract_centroids())
+    counties = sorted({c["fips"] for c in region["counties"]})
+    geoids = sorted(tract_tidy["geoid"].unique())
+    vt = {(r.geoid, int(r.year)): (r.value, r.moe) for r in tract_tidy.itertuples()}
+
+    def roll(gids, y, need=None):
+        num = wsum = mvar = 0.0
+        n, any_moe = 0, False
+        used = set()
+        for g in gids:
+            v = vt.get((g, y))
+            if not v or v[0] is None or not math.isfinite(v[0]):
+                continue
+            w = 1.0 if kind == "count" else pop.get((g, y))
+            if w is None or not math.isfinite(w) or w <= 0:
+                continue
+            num += v[0] * w
+            wsum += w
+            n += 1
+            used.add(g)
+            if v[1] is not None and math.isfinite(v[1]):
+                mvar += (w * v[1]) ** 2
+                any_moe = True
+        if n == 0:
+            return None, None
+        if need is not None and not need <= used:
+            return None, None   # incomplete count: missing or suppressed tracts
+        if kind == "count":
+            return num, (math.sqrt(mvar) if any_moe else None)
+        return num / wsum, (math.sqrt(mvar) / wsum if any_moe else None)
+
+    rows = []
+    for y in years:
+        for c in counties:
+            need = {g for g in expected if g[:5] == c} if kind == "count" else None
+            v, m = roll([g for g in geoids if g[:5] == c], y, need)
+            rows.append({"geoid": c, "year": y, "value": v, "moe": m})
+        v, m = roll(geoids, y, set(expected) if kind == "count" else None)
+        rows.append({"geoid": REGION_GEOID, "year": y, "value": v, "moe": m})
+    return calc.add_reliability(pd.DataFrame(rows), region)
+
+
 def build_county_region(ind: dict, region: dict, tract_tidy, present_years: list[int]):
     source = ind.get("source", "acs")
     if source == "acs":
@@ -229,4 +306,6 @@ def build_county_region(ind: dict, region: dict, tract_tidy, present_years: list
         return _zonal(ind, region, tract_tidy)
     if source == "lodes":
         return _lodes(ind, region, present_years)
+    if source == "tract_csv":
+        return _tract_derived(ind, region, tract_tidy)
     raise ValueError(f"county/region rollup: unknown source {source!r}")

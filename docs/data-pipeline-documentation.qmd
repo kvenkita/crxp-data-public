@@ -170,6 +170,32 @@ numerator for specific vintages, for the rare table whose category boundaries sh
 `measure_id` (e.g. `OBESITY`) + `data_value_type` (default `Crude prevalence`). The ingester pulls the
 model-based estimate and 95% CI, converted to a 90%-equivalent MOE.
 
+### Tract-file spec (`tract_csv:`) — bring your own data
+Any CSV keyed by census-tract GEOID becomes an indicator through `source: tract_csv`
+(`sources/tract_csv.py`). Fields:
+
+| Key | Required | Meaning |
+|---|---|---|
+| `path` | yes | CSV path relative to the `crxp-data` root, or an `https://` URL |
+| `geoid_col` | yes | Column holding tract GEOIDs (read as text, zero-padded to 11 digits; a trailing `.0` is stripped) |
+| `value_col` | yes | Column holding the value |
+| `kind` | yes | `count`, `proportion`, `rate`, `median`, or `index` |
+| `source_label` | yes | Credit shown in the app, the metadata page, and the download bundle |
+| `year` / `year_col` | exactly one | A single data year, or a column of years for multi-year files |
+| `moe_col` | no | A 90% MOE column; enables CV and reliability flags |
+| `tract_vintage` | no (2020) | `2010` allocates to 2020 tracts with the crosswalk |
+| `pop_col` | for 2010 `proportion`/`rate` | 2010-tract population used to weight the allocation |
+| `source_url` | no | Link for the metadata page's resources |
+| `source_id` | no (`tract_csv`) | Warehouse `source_id` |
+
+Rows outside the region's counties are dropped; no matching rows, a missing column, or a duplicate
+(geoid, year) stops the build with a message naming the problem. So does a vintage mismatch: if more than
+5% of the in-region GEOIDs are not tracts of the declared `tract_vintage` (checked against the committed
+crosswalk), the build stops and suggests the other vintage when most of the misses belong to it. On 2010 tracts, counts are allocated by
+allocation factor and rates/proportions by population-weighted pseudo-counts
+(`harmonize_places_rates`); medians and indices are rejected. County and region values are derived from
+the tracts (see *County + region rollup*), and the manifest entry carries `countyMethod: "derived from tracts"`.
+
 # Pipeline stages
 
 ## Ingest — `sources/`
@@ -261,6 +287,13 @@ estimates, MOEs in quadrature) and `census_acs.county_population` weights for me
 one frame per indicator persisted to the `county_indicators` warehouse. For the aggregation policy (why
 not average tracts) and the median approximation caveat, see the *Methodology Guide* §County and region
 estimates.
+
+`tract_csv` sources have no published county estimate, so `_tract_derived` builds county and region
+values from the tracts: counts are summed (MOEs in quadrature); every other kind is a population-weighted
+mean of tract values, weighted by tract population from the committed `total-population` warehouse
+(nearest available year). Tracts without a value or a population weight are skipped for weighted kinds.
+For counts, a county (or region) total is published only when every expected 2020 tract in it has a value;
+otherwise the total is left empty, because a sum over some tracts is not a total.
 
 ## Export / handoff — `export_crxp.py`
 Builds the app contract: value file (with `schemaVersion`, `moe`/`cv`/`reliability`), z + LISA docs, and
@@ -375,6 +408,11 @@ a wrong/absent code skips all years and yields empty output.
 - **QA gate** (`qa.py`, run in `build.py` before warehousing): **fails the build** if a year's geoid
   coverage collapses, the null rate is excessive, or finite values fall outside a configured plausible
   range, catching catastrophic ingest problems rather than silently publishing them.
+- **QA reports** (`warehouse/qa/`, committed): every check writes `<slug>.json` (per-year coverage, null
+  rate and row count; configured range; `pass`/`fail`; problems; date) and regenerates `qa_report.md`, one
+  table across all indicators. A failing check writes its report before stopping the build.
+  `python -m crxp_data.qa --all` (with `PYTHONPATH=src`) re-checks every indicator against the committed
+  warehouse without fetching and exits non-zero if any fails.
 - **Per-run summary** (build.py): geoid coverage, comparable-period significant-change counts, rows
   written, files merged: the first review surface.
 - **Reliability flags:** CV-based `caution`/`unreliable` in the warehouse and contract; surfaced in

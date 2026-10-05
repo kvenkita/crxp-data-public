@@ -1,0 +1,27 @@
+{
+  "id": 75,
+  "slug": "light-pollution",
+  "label": "Light pollution (night lights)",
+  "source": "viirs",
+  "status": "pass",
+  "checked_on": "2026-10-05",
+  "range": null,
+  "years": {
+    "2014": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2019": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    },
+    "2024": {
+      "coverage": 1.0,
+      "null_rate": 0.0,
+      "n": 752
+    }
+  },
+  "problems": []
+}

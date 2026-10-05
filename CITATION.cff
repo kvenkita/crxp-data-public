@@ -6,7 +6,7 @@ type: software
 authors:
   - family-names: Venkitasubramanian
     given-names: Kailas
-    affiliation: "UNC Charlotte Urban Institute"
+    affiliation: "University of North Carolina at Charlotte"
 url: "https://github.com/kvenkita/crxp-data-public"
 license: MIT
 year: 2026
@@ -23,12 +23,12 @@ preferred-citation:
   authors:
     - family-names: Venkitasubramanian
       given-names: Kailas
-      affiliation: "UNC Charlotte Urban Institute"
+      affiliation: "University of North Carolina at Charlotte"
     - family-names: Occhipinti
       given-names: Nick
-      affiliation: "UNC Charlotte Urban Institute"
+      affiliation: "University of North Carolina at Charlotte"
     - family-names: Alnahash
       given-names: Fatimah
-      affiliation: "UNC Charlotte Urban Institute"
+      affiliation: "University of North Carolina at Charlotte"
   year: 2026
   notes: "Working paper, UNC Charlotte Urban Institute. Add the Zenodo/SSRN DOI here once minted."

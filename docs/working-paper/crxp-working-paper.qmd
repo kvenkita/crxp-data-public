@@ -3,11 +3,11 @@ title: "An Open, Reproducible Platform for Small-Area Community Indicators: The 
 subtitle: "A working paper documenting the architecture, methodology, and replication of a civic data platform for the Charlotte region"
 author:
   - name: Kailas Venkitasubramanian
-    affiliation: UNC Charlotte Urban Institute
+    affiliation: University of North Carolina at Charlotte
   - name: Nick Occhipinti
-    affiliation: UNC Charlotte Urban Institute
+    affiliation: University of North Carolina at Charlotte
   - name: Fatimah Alnahash
-    affiliation: UNC Charlotte Urban Institute
+    affiliation: University of North Carolina at Charlotte
 date: last-modified
 license: "CC BY"
 abstract: >
@@ -41,11 +41,14 @@ format:
       theme: neutral
   pdf:
     documentclass: scrartcl
+    papersize: letter
     geometry: margin=1in
     colorlinks: true
     fig-cap-location: bottom
     fig-pos: 'H'
     pdf-engine: xelatex
+    template-partials:
+      - title.tex
     include-in-header:
       text: |
         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},fontsize=\footnotesize}

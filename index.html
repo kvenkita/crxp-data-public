@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>An Open, Reproducible Platform for Small-Area Community Indicators: The Carolinas Regional Explorer</title>
+<meta name="description" content="Working paper (v0.9) documenting the architecture, methodology, and replication of the Carolinas Regional Explorer, an open platform for census-tract community indicators.">
+<meta name="citation_title" content="An Open, Reproducible Platform for Small-Area Community Indicators: The Carolinas Regional Explorer">
+<meta name="citation_author" content="Venkitasubramanian, Kailas">
+<meta name="citation_author" content="Occhipinti, Nick">
+<meta name="citation_author" content="Alnahash, Fatimah">
+<meta name="citation_author_institution" content="University of North Carolina at Charlotte">
+<meta name="citation_publication_date" content="2026/10/05">
+<meta name="citation_technical_report_institution" content="University of North Carolina at Charlotte">
+<meta name="citation_pdf_url" content="https://kvenkita.github.io/crxp-data-public/crxp-working-paper.pdf">
+<style>
+  :root {
+    --bg: #fbfaf7; --fg: #1d2525; --muted: #56615f; --rule: #e2e0d9;
+    --accent: #1f6f5c; --accent-fg: #ffffff; --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141918; --fg: #e7ece9; --muted: #a5b0ac; --rule: #2c3533;
+      --accent: #5cc4a6; --accent-fg: #0f1513; --card: #1b2220;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.6 Georgia, "Times New Roman", serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
+  .kicker {
+    font: 600 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin: 0 0 12px;
+  }
+  h1 { font-size: clamp(26px, 4.5vw, 36px); line-height: 1.2; margin: 0 0 12px; }
+  .subtitle { color: var(--muted); margin: 0 0 20px; }
+  .authors { margin: 0; font-size: 18px; }
+  .affil { color: var(--muted); margin: 2px 0 24px; font-size: 15px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 32px; }
+  .btn {
+    font: 600 15px/1 system-ui, -apple-system, "Segoe UI", sans-serif; text-decoration: none;
+    padding: 12px 18px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); }
+  .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  h2 {
+    font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+    border-top: 1px solid var(--rule); padding-top: 20px; margin: 32px 0 12px;
+  }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent); }
+  ul { padding-left: 20px; margin: 0; }
+  li { margin: 0 0 6px; }
+  .cite {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 14px 16px; font-size: 15px; overflow-wrap: anywhere;
+  }
+  footer { color: var(--muted); font-size: 14px; margin-top: 40px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="kicker">Working paper · v0.9 · October 2026</p>
+  <h1>An Open, Reproducible Platform for Small-Area Community Indicators: The Carolinas Regional Explorer</h1>
+  <p class="subtitle">A working paper documenting the architecture, methodology, and replication of a civic data platform for the Charlotte region</p>
+  <p class="authors">Kailas Venkitasubramanian, Nick Occhipinti, Fatimah Alnahash</p>
+  <p class="affil">University of North Carolina at Charlotte</p>
+
+  <div class="actions">
+    <a class="btn primary" href="crxp-working-paper.pdf">Read the paper (PDF)</a>
+    <a class="btn" href="https://github.com/kvenkita/crxp-data-public">Code &amp; data</a>
+  </div>
+
+  <h2>Abstract</h2>
+  <p>Most community-indicator dashboards hide the statistical uncertainty of their small-area estimates and do not publish the code that produces them, so their numbers are hard to audit or reproduce. We present the Carolinas Regional Explorer (CRXP), an open platform for census-tract indicators across the 14-county Charlotte region: an open-source web application and a documented, config-driven data pipeline, joined by a versioned data contract. CRXP carries uncertainty through to the user: it propagates American Community Survey margins of error, flags low-reliability estimates, and tests change only between non-overlapping periods. It also documents choices that such platforms usually leave unstated, among them harmonizing 2010 and 2020 tract boundaries by population-weighted interpolation, detecting spatial clusters with FDR-controlled Local Moran's I on rank-normal scores, and attributing vernacular neighborhood names to tracts from OpenStreetMap. Plain-language, cited briefs and open downloads serve non-expert users. We document the system so that other regions can replicate or adapt it with attribution.</p>
+
+  <h2>Cite</h2>
+  <p class="cite">Venkitasubramanian, Kailas, Nick Occhipinti, and Fatimah Alnahash. 2026. “An Open, Reproducible Platform for Small-Area Community Indicators: The Carolinas Regional Explorer.” Working paper, version 0.9. University of North Carolina at Charlotte. https://kvenkita.github.io/crxp-data-public/</p>
+  <p>This is a living paper; please cite the version and date. A copy of this version is kept at <a href="crxp-working-paper-v0.9.pdf">crxp-working-paper-v0.9.pdf</a>.</p>
+
+  <h2>Related</h2>
+  <ul>
+    <li><a href="https://github.com/kvenkita/crxp-data-public">Data pipeline and reproducibility package</a> (MIT)</li>
+    <li><a href="https://github.com/kvenkita/crxp">Web application source</a> (MIT)</li>
+    <li><a href="https://carolinasexplorer.com/map">Carolinas Regional Explorer</a> (live site)</li>
+  </ul>
+
+  <footer>Paper text licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</footer>
+</main>
+</body>
+</html>

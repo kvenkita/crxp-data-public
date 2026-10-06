@@ -22,8 +22,7 @@ abstract: >
   interpolation, detecting spatial clusters with FDR-controlled Local Moran's I on rank-normal scores,
   and attributing vernacular neighborhood names to tracts from OpenStreetMap. Plain-language, cited
   briefs and open downloads serve non-expert users. We document the system so that other regions can
-  replicate or adapt it with attribution. The paper is versioned; findings for the Charlotte region
-  appear in a companion paper.
+  replicate or adapt it with attribution.
 keywords: [community indicators, small-area estimation, American Community Survey, data uncertainty, spatial autocorrelation, areal interpolation, volunteered geographic information, civic technology, reproducibility, urban analytics, open source]
 toc: true
 toc-depth: 3
@@ -107,9 +106,6 @@ Our contributions are:
 5. **A config-driven, multi-source data engine** spanning survey, model-based, administrative, and satellite data, with a
    source-sustainability classification (@sec-sources).
 6. **A replication pathway:** adoption recipe, licensing, and attribution model (@sec-adoption).
-
-Substantive regional findings are reserved for a companion paper, so this one stays a methods and
-systems reference.
 
 # Background and related work {#sec-related}
 

@@ -1,4 +1,6 @@
-% Quarto 1.3 PDF title partial, with author affiliations added under each name.
+% Quarto 1.3 PDF title partial, with the authors' affiliation as a title-page footnote: every name
+% carries the same * mark and one footnote lists the affiliation(s). Written for authors who share
+% an affiliation; with several distinct affiliations the footnote lists them all under one mark.
 $if(title)$
 \title{$title$$if(thanks)$\thanks{$thanks$}$endif$}
 $endif$
@@ -14,7 +16,7 @@ $else$
 $endif$
 \subtitle{$subtitle$}
 $endif$
-\author{$for(by-author)$$it.name.literal$$if(it.affiliations)$\\{\small $for(it.affiliations)$$it.name$$sep$; $endfor$}$endif$$sep$ \and $endfor$}
+\author{$for(by-author)$$it.name.literal$$sep$\footnotemark[1] \and $endfor$$if(by-affiliation)$\thanks{$for(by-affiliation)$$it.name$$sep$; $endfor$}$endif$}
 \date{$date$}
 $if(beamer)$
 $if(institute)$
